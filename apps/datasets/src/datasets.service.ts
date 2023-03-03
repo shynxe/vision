@@ -12,14 +12,17 @@ export class DatasetsService {
     @Inject(BILLING_SERVICE) private billingClient: ClientProxy,
   ) {}
 
-  async createDataset(request: CreateDatasetRequest) {
+  async createDataset(request: CreateDatasetRequest, authentication: string) {
     const session = await this.datasetsRepository.startTransaction();
     try {
       const dataset = await this.datasetsRepository.create(request, {
         session,
       });
       await lastValueFrom(
-        this.billingClient.emit('dataset_created', { request }),
+        this.billingClient.emit('dataset_created', {
+          request,
+          Authentication: authentication,
+        }),
       );
       await session.commitTransaction();
       return dataset;
