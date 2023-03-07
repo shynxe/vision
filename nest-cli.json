@@ -44,6 +44,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
+    },
+    "file-storage": {
+      "type": "application",
+      "root": "apps/file-storage",
+      "entryFile": "main",
+      "sourceRoot": "apps/file-storage/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/file-storage/tsconfig.app.json"
+      }
     }
   }
 }
