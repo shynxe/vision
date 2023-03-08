@@ -28,6 +28,7 @@ export class FileStorageController {
     return {
       originalName: file?.originalname,
       fileName: file?.filename,
+      destination: file?.destination,
     };
   }
 
