@@ -2,23 +2,24 @@ import { Module } from '@nestjs/common';
 import { FileStorageController } from './file-storage.controller';
 import { FileStorageService } from './file-storage.service';
 import { MulterModule } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-
-const storage = diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, '/tmp/uploads');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix);
-  },
-});
+import { ConfigModule } from '@nestjs/config';
+import * as Joi from 'joi';
+import { AuthModule } from '@app/common';
+import localStorage from './storage/diskStorage';
 
 @Module({
   imports: [
-    MulterModule.register({
-      storage,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: Joi.object({
+        PORT: Joi.number().required(),
+      }),
+      envFilePath: './apps/file-storage/.env',
     }),
+    MulterModule.register({
+      storage: localStorage,
+    }),
+    AuthModule,
   ],
   controllers: [FileStorageController],
   providers: [FileStorageService],
