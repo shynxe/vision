@@ -5,10 +5,12 @@ import {
   Post,
   UploadedFile,
   UploadedFiles,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileStorageService } from './file-storage.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from '@app/common';
 
 @Controller()
 export class FileStorageController {
@@ -22,6 +24,7 @@ export class FileStorageController {
   }
 
   @Post('upload')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(@UploadedFile() file: Express.Multer.File) {
     this.logger.log('Uploaded file: ' + file?.filename);
@@ -33,6 +36,7 @@ export class FileStorageController {
   }
 
   @Post('upload-multiple')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files'))
   uploadMultipleFiles(@UploadedFiles() files: Array<Express.Multer.File>) {
     this.logger.log(
