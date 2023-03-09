@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { AbstractDocument } from '@app/common';
+import { Optional } from '@nestjs/common';
 
 // schema for the object detection dataset
 @Schema({ versionKey: false })
@@ -11,7 +12,8 @@ export class Dataset extends AbstractDocument {
   description: string;
 
   @Prop()
-  url: string;
+  @Optional()
+  usersWithAccess: string[];
 }
 
 export const DatasetSchema = SchemaFactory.createForClass(Dataset);

@@ -9,8 +9,15 @@ export class DatasetsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  async createDataset(@Body() dataset: CreateDatasetRequest, @Req() req: any) {
-    console.log(req.user);
+  async createDataset(
+    @Body() datasetRequest: CreateDatasetRequest,
+    @Req() req: any,
+  ) {
+    const dataset = {
+      ...datasetRequest,
+      usersWithAccess: [req.user._id],
+    };
+
     return this.datasetsService.createDataset(
       dataset,
       req.cookies?.Authentication,

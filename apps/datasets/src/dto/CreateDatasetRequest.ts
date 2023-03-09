@@ -1,10 +1,8 @@
-import { IsString, IsUrl } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class CreateDatasetRequest {
   @IsString()
   name: string;
   @IsString()
   description: string;
-  @IsUrl()
-  url: string;
 }
