@@ -13,13 +13,8 @@ export class DatasetsController {
     @Body() datasetRequest: CreateDatasetRequest,
     @Req() req: any,
   ) {
-    const dataset = {
-      ...datasetRequest,
-      usersWithAccess: [req.user._id],
-    };
-
     return this.datasetsService.createDataset(
-      dataset,
+      datasetRequest,
       req.cookies?.Authentication,
     );
   }

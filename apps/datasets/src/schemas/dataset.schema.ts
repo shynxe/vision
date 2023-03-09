@@ -10,9 +10,6 @@ export class Dataset extends AbstractDocument {
   @Prop()
   description: string;
 
-  @Prop()
-  usersWithAccess: string[];
-
   @Prop({ default: false })
   isPublic: boolean;
 }

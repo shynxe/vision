@@ -7,7 +7,7 @@ import { AuthModule, DatabaseModule, RmqModule } from '@app/common';
 import { DatasetsRepository } from './datasets.repository';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Dataset, DatasetSchema } from './schemas/dataset.schema';
-import { BILLING_SERVICE } from './constants/services';
+import { AUTH_SERVICE, BILLING_SERVICE } from './constants/services';
 
 @Module({
   imports: [
@@ -27,6 +27,7 @@ import { BILLING_SERVICE } from './constants/services';
       },
     ]),
     RmqModule.register({ name: BILLING_SERVICE }),
+    RmqModule.register({ name: AUTH_SERVICE }),
     AuthModule,
   ],
   controllers: [DatasetsController],

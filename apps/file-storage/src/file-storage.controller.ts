@@ -50,4 +50,32 @@ export class FileStorageController {
       fileName: file?.filename,
     }));
   }
+
+  /* TODO: endpoint for downloading a file
+  @Get('image')
+  public async getImage(@Res() res: Response) {
+    const imagePath = path.join(__dirname, '..', 'public', 'images', 'your-image-file.jpg');
+    const stream = createReadStream(imagePath);
+    res.setHeader('Content-Type', 'image/jpeg');
+    return stream.pipe(res);
+  }
+   */
+
+  /* TODO: endpoint to get all files in a dataset using stream.pipe
+  @Get('files')
+  public async getFiles(@Req() req: any, @Res() res: Response) {
+    const { datasetId } = req.query;
+    const files = await this.fileStorageService.getFiles(datasetId);
+    const zip = archiver('zip', {
+      zlib: { level: 9 },
+    });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${datasetId}.zip"`);
+    zip.pipe(res);
+    files.forEach((file) => {
+      zip.append(file.createReadStream(), { name: file.name });
+    });
+    await zip.finalize();
+  }
+  */
 }

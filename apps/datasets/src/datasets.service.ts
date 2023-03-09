@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DatasetsRepository } from './datasets.repository';
-import { BILLING_SERVICE } from './constants/services';
+import { AUTH_SERVICE, BILLING_SERVICE } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
 import { lastValueFrom } from 'rxjs';
 import { Dataset } from './schemas/dataset.schema';
@@ -10,6 +10,7 @@ export class DatasetsService {
   constructor(
     private readonly datasetsRepository: DatasetsRepository,
     @Inject(BILLING_SERVICE) private billingClient: ClientProxy,
+    @Inject(AUTH_SERVICE) private authClient: ClientProxy,
   ) {}
 
   async createDataset(request: Omit<Dataset, '_id'>, authentication: string) {
@@ -21,6 +22,12 @@ export class DatasetsService {
       await lastValueFrom(
         this.billingClient.emit('dataset_created', {
           request,
+          Authentication: authentication,
+        }),
+      );
+      await lastValueFrom(
+        this.authClient.emit('dataset_created', {
+          datasetId: dataset._id,
           Authentication: authentication,
         }),
       );

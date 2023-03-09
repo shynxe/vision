@@ -14,24 +14,10 @@ export class UsersService {
 
   async createUser(request: CreateUserRequest) {
     await this.validateCreateUserRequest(request);
-    const user = await this.usersRepository.create({
+    return await this.usersRepository.create({
       ...request,
       password: await bcrypt.hash(request.password, 10),
     });
-    return user;
-  }
-
-  private async validateCreateUserRequest(request: CreateUserRequest) {
-    let user: User;
-    try {
-      user = await this.usersRepository.findOne({
-        email: request.email,
-      });
-    } catch (err) {}
-
-    if (user) {
-      throw new UnprocessableEntityException('Email already exists.');
-    }
   }
 
   async validateUser(email: string, password: string) {
@@ -45,5 +31,32 @@ export class UsersService {
 
   async getUser(getUserArgs: Partial<User>) {
     return this.usersRepository.findOne(getUserArgs);
+  }
+
+  async addDataset(user: User, datasetId: string) {
+    return this.usersRepository.findOneAndUpdate(
+      { _id: user._id },
+      { $push: { datasets: datasetId } },
+    );
+  }
+
+  async removeDataset(user: User, datasetId: string) {
+    return this.usersRepository.findOneAndUpdate(
+      { _id: user._id },
+      { $pull: { datasets: datasetId } },
+    );
+  }
+
+  private async validateCreateUserRequest(request: CreateUserRequest) {
+    let user: User;
+    try {
+      user = await this.usersRepository.findOne({
+        email: request.email,
+      });
+    } catch (err) {}
+
+    if (user) {
+      throw new UnprocessableEntityException('Email already exists.');
+    }
   }
 }
