@@ -3,10 +3,20 @@ import { BadRequestException } from '@nestjs/common';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Request } from 'express';
+import { UploadRequest } from '../dto/UploadRequest';
 
 const localStorage: StorageEngine = diskStorage({
-  destination: function (req: Request, file: Express.Multer.File, cb) {
+  destination: function (req: UploadRequest, file: Express.Multer.File, cb) {
     const { datasetId } = req.body;
+    const user = req.user;
+
+    if (!user.datasets.includes(datasetId)) {
+      cb(
+        new BadRequestException('Unauthorized to upload to this dataset'),
+        null,
+      );
+      return;
+    }
 
     // make sure datasetId is provided
     if (!datasetId) {
