@@ -42,7 +42,6 @@ export class DatasetsController {
     @Payload('datasetId') datasetId: string,
     @CurrentUser() user: User,
   ) {
-    console.log('found user', user);
     return this.datasetsService.userHasAccessToDataset(datasetId, user);
   }
 }

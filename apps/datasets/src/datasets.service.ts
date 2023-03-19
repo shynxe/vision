@@ -59,12 +59,7 @@ export class DatasetsService {
     if (!user) {
       return false;
     }
-    console.log('user', user);
-    console.log('datasetId', datasetId);
-    console.log(
-      'user.datasets.includes(datasetId)',
-      user.datasets.includes(datasetId),
-    );
+
     return user.datasets.includes(datasetId);
   }
 }
