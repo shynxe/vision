@@ -7,16 +7,22 @@ import {
 } from '@nestjs/common';
 import { AUTH_SERVICE } from '@app/common/auth/services';
 import { ClientProxy } from '@nestjs/microservices';
-import { catchError, Observable, tap } from 'rxjs';
+import { catchError, Observable, of, tap } from 'rxjs';
+import { Reflector } from '@nestjs/core';
+import { shouldBypassAuth } from '@app/common/auth/bypass.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(@Inject(AUTH_SERVICE) private authClient: ClientProxy) {}
+  constructor(
+    private reflector: Reflector,
+    @Inject(AUTH_SERVICE) private authClient: ClientProxy,
+  ) {}
 
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const authentication = this.getAuthentication(context);
+    const shouldBypass = shouldBypassAuth(context, this.reflector);
     return this.authClient
       .send('validate_user', {
         Authentication: authentication,
@@ -25,7 +31,10 @@ export class JwtAuthGuard implements CanActivate {
         tap((res) => {
           this.addUserToContext(res, context);
         }),
-        catchError((err) => {
+        catchError(() => {
+          if (shouldBypass) {
+            return of(true);
+          }
           throw new UnauthorizedException();
         }),
       );
@@ -39,7 +48,8 @@ export class JwtAuthGuard implements CanActivate {
       authentication = context.switchToHttp().getRequest()
         .cookies?.Authentication;
     }
-    if (!authentication) {
+    const shouldBypass = shouldBypassAuth(context, this.reflector);
+    if (!authentication && !shouldBypass) {
       throw new UnauthorizedException(
         'No value was provided for the Authentication',
       );

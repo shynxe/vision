@@ -4,6 +4,7 @@ import { AUTH_SERVICE, BILLING_SERVICE } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
 import { lastValueFrom } from 'rxjs';
 import { Dataset } from './schemas/dataset.schema';
+import { User } from '../../auth/src/users/schemas/user.schema';
 
 @Injectable()
 export class DatasetsService {
@@ -41,5 +42,29 @@ export class DatasetsService {
 
   async getDatasets() {
     return this.datasetsRepository.find({});
+  }
+
+  handleUploadedFile(fileUrl: string, datasetId: string) {
+    console.log('DATASET SERVICE: file uploaded', fileUrl + ' ' + datasetId);
+    // TODO: implement this (add fileUrl to dataset)
+  }
+
+  async userHasAccessToDataset(datasetId: any, user: User) {
+    // check if dataset is public through datasets service
+    const dataset = await this.datasetsRepository.findOne({ _id: datasetId });
+    if (dataset.isPublic) {
+      return true;
+    }
+
+    if (!user) {
+      return false;
+    }
+    console.log('user', user);
+    console.log('datasetId', datasetId);
+    console.log(
+      'user.datasets.includes(datasetId)',
+      user.datasets.includes(datasetId),
+    );
+    return user.datasets.includes(datasetId);
   }
 }

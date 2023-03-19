@@ -21,8 +21,8 @@ export class AuthController {
     response.send(user);
   }
 
-  @UseGuards(JwtAuthGuard)
   @MessagePattern('validate_user')
+  @UseGuards(JwtAuthGuard)
   async validateUser(@CurrentUser() user: User) {
     return this.authService.validateUser(user);
   }

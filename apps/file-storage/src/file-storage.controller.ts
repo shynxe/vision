@@ -1,10 +1,11 @@
 import {
+  Body,
   Controller,
   Get,
   Logger,
+  Param,
   Post,
   Req,
-  Res,
   StreamableFile,
   UnauthorizedException,
   UploadedFile,
@@ -15,8 +16,8 @@ import {
 import { FileStorageService } from './file-storage.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@app/common';
-import type { Request, Response } from 'express';
-import { DownloadRequest } from './dto/DownloadRequest';
+import type { Request } from 'express';
+import { BypassAuth } from '@app/common/auth/bypass.decorator';
 
 @Controller()
 export class FileStorageController {
@@ -32,13 +33,18 @@ export class FileStorageController {
   @Post('upload')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('datasetId') datasetId: string,
+    @Req() req: Request,
+  ) {
     this.logger.log('Uploaded file: ' + file?.filename);
-    return {
-      originalName: file?.originalname,
-      fileName: file?.filename,
-      destination: file?.destination,
-    };
+    const authentication = req.cookies?.Authentication;
+    return await this.fileStorageService.handleUploadedFile(
+      datasetId,
+      file,
+      authentication,
+    );
   }
 
   @Post('upload-multiple')
@@ -58,32 +64,24 @@ export class FileStorageController {
   }
 
   @Get('image/:datasetId/:filename')
+  @BypassAuth()
   @UseGuards(JwtAuthGuard)
-  public getImage(@Req() req: DownloadRequest): StreamableFile {
-    const { datasetId, filename } = req.params;
-
+  public async getImage(
+    @Param('datasetId') datasetId: string,
+    @Param('filename') filename: string,
+    @Req() req: Request,
+  ): Promise<StreamableFile> {
     // check if user has access to dataset
-    if (!req.user.datasets.includes(datasetId)) {
-      throw new UnauthorizedException('Unauthorized to access this dataset');
+    const authentication = req.cookies?.Authentication;
+    const userHasAccess = await this.fileStorageService.hasAccessToDataset(
+      datasetId,
+      authentication,
+    );
+    if (!userHasAccess) {
+      throw new UnauthorizedException();
     }
 
     return this.fileStorageService.getFile(datasetId, filename);
-  }
-
-  // endpoint for html file that displays the image from the above endpoint
-  // FOR DEBUGGING ONLY
-  @Get('image-html')
-  public async getImageHtml(@Req() req: Request, @Res() res: Response) {
-    res.set({
-      'Content-Type': 'text/html',
-    });
-    return res.send(`
-      <html>
-        <body>
-          <img src="http://localhost:3002/image/6415f8f09013deb96185d912/1679162174670-Screenshot from 2023-01-04 14-55-22.png" />
-        </body>
-      </html>
-    `);
   }
 
   /* TODO: endpoint to get all files in a dataset using stream.pipe

@@ -43,6 +43,7 @@ export class AuthService {
   }
 
   async validateUser(user: User) {
+    // TODO: validate token
     return this.usersService.getUser({ _id: user._id });
   }
 }

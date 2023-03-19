@@ -4,8 +4,9 @@ import { FileStorageService } from './file-storage.service';
 import { MulterModule } from '@nestjs/platform-express';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
-import { AuthModule } from '@app/common';
+import { AuthModule, RmqModule } from '@app/common';
 import localStorage from './storage/diskStorage';
+import { DATASETS_SERVICE } from './constants/services';
 
 @Module({
   imports: [
@@ -19,6 +20,8 @@ import localStorage from './storage/diskStorage';
     MulterModule.register({
       storage: localStorage,
     }),
+    RmqModule.register({ name: DATASETS_SERVICE }),
+    RmqModule,
     AuthModule,
   ],
   controllers: [FileStorageController],
