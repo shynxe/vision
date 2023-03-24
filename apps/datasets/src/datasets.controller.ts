@@ -6,6 +6,8 @@ import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { CurrentUser } from '../../auth/src/current-user.decorator';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { BypassAuth } from '@app/common/auth/bypass.decorator';
+import { RemoveFileRequest } from './dto/RemoveFileRequest';
+import { FileUploadedPayload } from './dto/FileUploadedPayload';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -23,6 +25,18 @@ export class DatasetsController {
     );
   }
 
+  @Post('removeFile')
+  @UseGuards(JwtAuthGuard)
+  async removeFileFromDataset(
+    @Body() removeFileRequest: RemoveFileRequest,
+    @Req() req: any,
+  ) {
+    return this.datasetsService.removeFileFromDataset(
+      removeFileRequest,
+      req.cookies?.Authentication,
+    );
+  }
+
   @Get()
   async getDatasets() {
     return this.datasetsService.getDatasets();
@@ -30,18 +44,18 @@ export class DatasetsController {
 
   @EventPattern('file_uploaded')
   @UseGuards(JwtAuthGuard)
-  async fileUploaded(@Payload() payload: any) {
+  async fileUploaded(@Payload() payload: FileUploadedPayload) {
     const { fileUrl, datasetId } = payload;
-    return this.datasetsService.handleUploadedFile(fileUrl, datasetId);
+    return this.datasetsService.addUploadedFile(fileUrl, datasetId);
   }
 
-  @MessagePattern('user_has_access_to_dataset')
+  @MessagePattern('user_has_read_access')
   @BypassAuth()
   @UseGuards(JwtAuthGuard)
   async userHasAccessToDataset(
     @Payload('datasetId') datasetId: string,
     @CurrentUser() user: User,
   ) {
-    return this.datasetsService.userHasAccessToDataset(datasetId, user);
+    return this.datasetsService.userHasReadAccess(datasetId, user);
   }
 }

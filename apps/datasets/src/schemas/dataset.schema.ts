@@ -12,6 +12,9 @@ export class Dataset extends AbstractDocument {
 
   @Prop({ default: false })
   isPublic: boolean;
+
+  @Prop()
+  files: string[];
 }
 
 export const DatasetSchema = SchemaFactory.createForClass(Dataset);

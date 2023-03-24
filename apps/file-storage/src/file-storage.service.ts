@@ -1,6 +1,6 @@
 import { Inject, Injectable, StreamableFile } from '@nestjs/common';
 import * as path from 'path';
-import { createReadStream } from 'fs';
+import { createReadStream, promises as fs } from 'fs';
 import { ClientProxy } from '@nestjs/microservices';
 import { DATASETS_SERVICE } from './constants/services';
 import { ConfigService } from '@nestjs/config';
@@ -46,10 +46,23 @@ export class FileStorageService {
     };
   }
 
-  hasAccessToDataset(datasetId: string, authentication: string) {
+  async removeFile(datasetId: string, fileUrl: string) {
+    const filename = fileUrl.split('/').pop();
+    const imagePath = path.join('/tmp/uploads/', datasetId, filename);
+
+    // remove from disk storage
+    await fs.unlink(imagePath);
+
+    return {
+      fileUrl,
+      datasetId,
+    };
+  }
+
+  hasReadAccess(datasetId: string, authentication: string) {
     // call datasets service to check if user has access to dataset
     return lastValueFrom(
-      this.datasetsClient.send('user_has_access_to_dataset', {
+      this.datasetsClient.send('user_has_read_access', {
         datasetId,
         Authentication: authentication,
       }),

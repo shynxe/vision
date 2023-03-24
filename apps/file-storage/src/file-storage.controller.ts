@@ -18,6 +18,8 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@app/common';
 import type { Request } from 'express';
 import { BypassAuth } from '@app/common/auth/bypass.decorator';
+import { EventPattern, Payload } from '@nestjs/microservices';
+import { FileRemovedPayload } from './dto/FileRemovedPayload';
 
 @Controller()
 export class FileStorageController {
@@ -73,7 +75,7 @@ export class FileStorageController {
   ): Promise<StreamableFile> {
     // check if user has access to dataset
     const authentication = req.cookies?.Authentication;
-    const userHasAccess = await this.fileStorageService.hasAccessToDataset(
+    const userHasAccess = await this.fileStorageService.hasReadAccess(
       datasetId,
       authentication,
     );
@@ -82,6 +84,13 @@ export class FileStorageController {
     }
 
     return this.fileStorageService.getFile(datasetId, filename);
+  }
+
+  @EventPattern('file_removed')
+  @UseGuards(JwtAuthGuard)
+  async handleFileRemoved(@Payload() payload: FileRemovedPayload) {
+    const { datasetId, fileUrl } = payload;
+    return this.fileStorageService.removeFile(datasetId, fileUrl);
   }
 
   /* TODO: endpoint to get all files in a dataset using stream.pipe
