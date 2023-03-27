@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { AbstractDocument } from '@app/common';
+import { Image, ImageSchema } from './image.schema';
 
-// schema for the object detection dataset
 @Schema({ versionKey: false })
 export class Dataset extends AbstractDocument {
   @Prop()
@@ -13,8 +13,8 @@ export class Dataset extends AbstractDocument {
   @Prop({ default: false })
   isPublic: boolean;
 
-  @Prop()
-  files: string[];
+  @Prop([{ type: ImageSchema }])
+  images: Image[];
 }
 
 export const DatasetSchema = SchemaFactory.createForClass(Dataset);

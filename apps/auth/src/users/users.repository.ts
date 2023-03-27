@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model, Connection } from 'mongoose';
+import { Connection, FilterQuery, Model } from 'mongoose';
 import { AbstractRepository } from '@app/common';
 import { User } from './schemas/user.schema';
 
@@ -13,5 +13,18 @@ export class UsersRepository extends AbstractRepository<User> {
     @InjectConnection() connection: Connection,
   ) {
     super(userModel, connection);
+  }
+
+  async findOne(filterQuery: FilterQuery<User>): Promise<User> {
+    try {
+      return await super.findOne(filterQuery);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException('User not found.');
+      } else {
+        this.logger.error(error);
+        throw error;
+      }
+    }
   }
 }

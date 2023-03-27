@@ -46,28 +46,21 @@ export class DatasetsService {
     }
   }
 
-  async updateDataset(request: Dataset) {
-    const session = await this.datasetsRepository.startTransaction();
-    try {
-      const dataset = await this.datasetsRepository.findOneAndUpdate(request, {
-        session,
-      });
-      await session.commitTransaction();
-      return dataset;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    }
-  }
-
   async getDatasets() {
     return this.datasetsRepository.find({});
   }
 
   async addUploadedFile(fileUrl: string, datasetId: string) {
-    const dataset = await this.datasetsRepository.findOne({ _id: datasetId });
-    dataset.files.push(fileUrl);
-    return this.updateDataset(dataset);
+    const newImage = {
+      url: fileUrl,
+      name: fileUrl.split('/').pop(),
+      boundingBoxes: [],
+    };
+
+    return await this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId },
+      { $push: { images: newImage } },
+    );
   }
 
   async removeFileFromDataset(
@@ -78,9 +71,9 @@ export class DatasetsService {
       _id: removeFileRequest.datasetId,
     });
 
-    const matchFound = dataset.files.some((fileUrl, index) => {
-      if (fileUrl === removeFileRequest.fileUrl) {
-        dataset.files.splice(index, 1);
+    const matchFound = dataset.images.some((image, index) => {
+      if (image.url === removeFileRequest.fileUrl) {
+        dataset.images.splice(index, 1);
         return true; // Stop iterating
       }
 
@@ -91,7 +84,10 @@ export class DatasetsService {
       throw new Error('File not found');
     }
 
-    await this.updateDataset(dataset);
+    await this.datasetsRepository.findOneAndUpdate(
+      { _id: removeFileRequest.datasetId },
+      { $pull: { images: { url: removeFileRequest.fileUrl } } },
+    );
 
     await lastValueFrom(
       this.fileStorageClient.emit('file_removed', {
