@@ -8,6 +8,7 @@ import { User } from '../../auth/src/users/schemas/user.schema';
 import { BypassAuth } from '@app/common/auth/bypass.decorator';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { FileUploadedPayload } from './dto/FileUploadedPayload';
+import { BoundingBox } from './schemas/image.schema';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -57,5 +58,19 @@ export class DatasetsController {
     @CurrentUser() user: User,
   ) {
     return this.datasetsService.userHasReadAccess(datasetId, user);
+  }
+
+  @Post('updateBoundingBoxes')
+  @UseGuards(JwtAuthGuard)
+  async updateBoundingBoxesForImage(
+    @Payload('datasetId') datasetId: string,
+    @Payload('imageId') imageId: string,
+    @Payload('boundingBoxes') boundingBoxes: BoundingBox[],
+  ) {
+    return this.datasetsService.updateBoundingBoxesForImage(
+      datasetId,
+      imageId,
+      boundingBoxes,
+    );
   }
 }

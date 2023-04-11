@@ -10,6 +10,7 @@ import { lastValueFrom } from 'rxjs';
 import { Dataset } from './schemas/dataset.schema';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
+import { BoundingBox } from './schemas/image.schema';
 
 @Injectable()
 export class DatasetsService {
@@ -118,5 +119,16 @@ export class DatasetsService {
     }
 
     return user.datasets.includes(datasetId);
+  }
+
+  async updateBoundingBoxesForImage(
+    datasetId: string,
+    imageId: string,
+    boundingBoxes: BoundingBox[],
+  ) {
+    return await this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId, 'images._id': imageId },
+      { $set: { 'images.$.boundingBoxes': boundingBoxes } },
+    );
   }
 }

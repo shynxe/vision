@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Logger,
   Param,
   Post,
@@ -65,7 +66,9 @@ export class FileStorageController {
     }));
   }
 
+  // TODO: remove @Header and replace with @Res() res: Response
   @Get('image/:datasetId/:filename')
+  @Header('Content-Type', 'image/png')
   @BypassAuth()
   @UseGuards(JwtAuthGuard)
   public async getImage(
