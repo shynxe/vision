@@ -72,6 +72,13 @@ services:
       - /usr/src/app/node_modules
       - filestorage-volume:/tmp/uploads
 
+  trainer:
+    build:
+      context: .
+      dockerfile: ./apps/trainer/Dockerfile
+    depends_on:
+      - rabbitmq
+
   rabbitmq:
     image: rabbitmq
     ports:
