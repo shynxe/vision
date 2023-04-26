@@ -134,12 +134,18 @@ export class DatasetsService {
     );
   }
 
-  trainDataset(datasetId: string, modelName: string) {
+  async trainDataset(datasetId: string, modelName: string) {
+    const dataset = await this.getDatasetById(datasetId);
     return lastValueFrom(
-      this.trainerClient.send('train', {
+      this.trainerClient.emit('train', {
         datasetId,
         modelName,
+        images: dataset.images,
       }),
     );
+  }
+
+  getDatasetById(datasetId: string) {
+    return this.datasetsRepository.findOne({ _id: datasetId });
   }
 }

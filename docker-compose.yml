@@ -77,12 +77,18 @@ services:
       context: .
       dockerfile: ./apps/trainer/Dockerfile
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   rabbitmq:
     image: rabbitmq
     ports:
       - '5672:5672'
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 30s
+      timeout: 30s
+      retries: 3
 
   mongodb-primary:
     image: docker.io/bitnami/mongodb:5.0

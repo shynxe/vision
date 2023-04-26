@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { DatasetsService } from './datasets.service';
 import { CreateDatasetRequest } from './dto/CreateDatasetRequest';
 import { JwtAuthGuard } from '@app/common';
@@ -41,6 +49,11 @@ export class DatasetsController {
   @Get()
   async getDatasets() {
     return this.datasetsService.getDatasets();
+  }
+
+  @Get(':id')
+  async getDatasetById(@Param('id') datasetId: string) {
+    return this.datasetsService.getDatasetById(datasetId);
   }
 
   @EventPattern('file_uploaded')
