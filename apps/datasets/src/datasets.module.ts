@@ -11,6 +11,7 @@ import {
   AUTH_SERVICE,
   BILLING_SERVICE,
   FILESTORAGE_SERVICE,
+  TRAINER_SERVICE,
 } from './constants/services';
 
 @Module({
@@ -33,6 +34,7 @@ import {
     RmqModule.register({ name: BILLING_SERVICE }),
     RmqModule.register({ name: AUTH_SERVICE }),
     RmqModule.register({ name: FILESTORAGE_SERVICE }),
+    RmqModule.register({ name: TRAINER_SERVICE }),
     RmqModule,
     AuthModule,
   ],

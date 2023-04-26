@@ -73,4 +73,13 @@ export class DatasetsController {
       boundingBoxes,
     );
   }
+
+  @Post('train')
+  @UseGuards(JwtAuthGuard)
+  async trainDataset(
+    @Payload('datasetId') datasetId: string,
+    @Payload('modelName') modelName: string,
+  ) {
+    return this.datasetsService.trainDataset(datasetId, modelName);
+  }
 }

@@ -1,3 +1,4 @@
 export const BILLING_SERVICE = 'BILLING';
 export const AUTH_SERVICE = 'AUTH';
 export const FILESTORAGE_SERVICE = 'FILESTORAGE';
+export const TRAINER_SERVICE = 'TRAINER';

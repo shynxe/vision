@@ -1,16 +1,39 @@
-# This is a sample Python script.
+import os
+import pika
+from dotenv import load_dotenv
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+print(' [*] Waiting for messages. To exit press CTRL+C')
+load_dotenv()
 
+# Read the RabbitMQ URI from the environment variable
+rabbitmq_uri = os.environ['RABBIT_MQ_URI']
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+# Read the trainer queue name from the environment variable
+trainer_queue = os.environ['RABBIT_MQ_TRAINER_QUEUE']
 
+# Create a connection to the RabbitMQ instance
+connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_uri))
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+# Create a channel on the connection
+channel = connection.channel()
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+# Declare the trainer queue
+channel.queue_declare(queue=trainer_queue, durable=True)
+
+# Define a function to handle incoming messages
+def callback(ch, method, properties, body):
+    # Do something with the message body
+    print(body)
+
+    # Acknowledge the message
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+# Start consuming messages from the trainer queue
+channel.basic_consume(queue=trainer_queue, on_message_callback=callback, auto_ack=False)
+
+try:
+    channel.start_consuming()
+except KeyboardInterrupt:
+    channel.stop_consuming()
+
+connection.close()

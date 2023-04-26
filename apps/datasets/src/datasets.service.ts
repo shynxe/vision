@@ -4,6 +4,7 @@ import {
   AUTH_SERVICE,
   BILLING_SERVICE,
   FILESTORAGE_SERVICE,
+  TRAINER_SERVICE,
 } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
 import { lastValueFrom } from 'rxjs';
@@ -19,6 +20,7 @@ export class DatasetsService {
     @Inject(BILLING_SERVICE) private billingClient: ClientProxy,
     @Inject(FILESTORAGE_SERVICE) private fileStorageClient: ClientProxy,
     @Inject(AUTH_SERVICE) private authClient: ClientProxy,
+    @Inject(TRAINER_SERVICE) private trainerClient: ClientProxy,
   ) {}
 
   async createDataset(request: Partial<Dataset>, authentication = '') {
@@ -129,6 +131,15 @@ export class DatasetsService {
     return await this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId, 'images._id': imageId },
       { $set: { 'images.$.boundingBoxes': boundingBoxes } },
+    );
+  }
+
+  trainDataset(datasetId: string, modelName: string) {
+    return lastValueFrom(
+      this.trainerClient.send('train', {
+        datasetId,
+        modelName,
+      }),
     );
   }
 }
