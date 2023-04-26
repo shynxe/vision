@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { DatasetsService } from './datasets.service';
@@ -17,6 +18,7 @@ import { BypassAuth } from '@app/common/auth/bypass.decorator';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { FileUploadedPayload } from './dto/FileUploadedPayload';
 import { BoundingBox } from './schemas/image.schema';
+import { Cookies } from '@app/common/cookies/cookies.decorator';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -27,22 +29,20 @@ export class DatasetsController {
   async createDataset(
     @Body() datasetRequest: CreateDatasetRequest,
     @Req() req: any,
+    @Cookies('Authentication') authentication: string,
   ) {
-    return this.datasetsService.createDataset(
-      datasetRequest,
-      req.cookies?.Authentication,
-    );
+    return this.datasetsService.createDataset(datasetRequest, authentication);
   }
 
   @Post('removeFile')
   @UseGuards(JwtAuthGuard)
   async removeFileFromDataset(
     @Body() removeFileRequest: RemoveFileRequest,
-    @Req() req: any,
+    @Cookies('Authentication') authentication: string,
   ) {
     return this.datasetsService.removeFileFromDataset(
       removeFileRequest,
-      req.cookies?.Authentication,
+      authentication,
     );
   }
 
@@ -79,7 +79,20 @@ export class DatasetsController {
     @Payload('datasetId') datasetId: string,
     @Payload('imageId') imageId: string,
     @Payload('boundingBoxes') boundingBoxes: BoundingBox[],
+    @CurrentUser() user: User,
   ) {
+    // check if user has write access to dataset
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
     return this.datasetsService.updateBoundingBoxesForImage(
       datasetId,
       imageId,
@@ -92,7 +105,33 @@ export class DatasetsController {
   async trainDataset(
     @Payload('datasetId') datasetId: string,
     @Payload('modelName') modelName: string,
+    @Cookies('Authentication') authentication: string,
   ) {
-    return this.datasetsService.trainDataset(datasetId, modelName);
+    return this.datasetsService.trainDataset(
+      datasetId,
+      modelName,
+      authentication,
+    );
+  }
+
+  // remove dataset endpoint
+  @Post('remove')
+  @UseGuards(JwtAuthGuard)
+  async removeDataset(
+    @Payload('datasetId') datasetId: string,
+    @CurrentUser() user: User,
+  ) {
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    return this.datasetsService.removeDataset(datasetId);
   }
 }

@@ -6,7 +6,6 @@ import {
   Logger,
   Param,
   Post,
-  Req,
   StreamableFile,
   UnauthorizedException,
   UploadedFile,
@@ -17,10 +16,10 @@ import {
 import { FileStorageService } from './file-storage.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '@app/common';
-import type { Request } from 'express';
 import { BypassAuth } from '@app/common/auth/bypass.decorator';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { FileRemovedPayload } from './dto/FileRemovedPayload';
+import { Cookies } from '@app/common/cookies/cookies.decorator';
 
 @Controller()
 export class FileStorageController {
@@ -39,10 +38,9 @@ export class FileStorageController {
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('datasetId') datasetId: string,
-    @Req() req: Request,
+    @Cookies('Authentication') authentication: string,
   ) {
     this.logger.log('Uploaded file: ' + file?.filename);
-    const authentication = req.cookies?.Authentication;
     return await this.fileStorageService.handleUploadedFile(
       datasetId,
       file,
@@ -74,10 +72,9 @@ export class FileStorageController {
   public async getImage(
     @Param('datasetId') datasetId: string,
     @Param('filename') filename: string,
-    @Req() req: Request,
+    @Cookies('Authentication') authentication: string,
   ): Promise<StreamableFile> {
     // check if user has access to dataset
-    const authentication = req.cookies?.Authentication;
     const userHasAccess = await this.fileStorageService.hasReadAccess(
       datasetId,
       authentication,

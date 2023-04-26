@@ -41,6 +41,17 @@ export abstract class AbstractRepository<TDocument extends AbstractDocument> {
     return document;
   }
 
+  async findById(id: string) {
+    const document = await this.model.findById(id, {}, { lean: true });
+
+    if (!document) {
+      this.logger.warn('Document not found with id', id);
+      throw new NotFoundException('Document not found.');
+    }
+
+    return document;
+  }
+
   async findOneAndUpdate(
     filterQuery: FilterQuery<TDocument>,
     update: UpdateQuery<TDocument>,
@@ -71,6 +82,39 @@ export abstract class AbstractRepository<TDocument extends AbstractDocument> {
 
   async find(filterQuery: FilterQuery<TDocument>) {
     return this.model.find(filterQuery, {}, { lean: true });
+  }
+
+  async deleteOne(filterQuery: FilterQuery<TDocument>) {
+    const result = await this.model.deleteOne(filterQuery);
+
+    if (result.deletedCount === 0) {
+      this.logger.warn(`No document deleted with filterQuery:`, filterQuery);
+      throw new NotFoundException('No document deleted.');
+    }
+
+    return result.deletedCount;
+  }
+
+  async deleteMany(filterQuery: FilterQuery<TDocument>) {
+    const result = await this.model.deleteMany(filterQuery);
+
+    if (result.deletedCount === 0) {
+      this.logger.warn(`No documents deleted with filterQuery:`, filterQuery);
+      throw new NotFoundException('No documents deleted.');
+    }
+
+    return result.deletedCount;
+  }
+
+  async findByIdAndDelete(id: string) {
+    const result = await this.model.findByIdAndDelete(id);
+
+    if (!result) {
+      this.logger.warn(`No document deleted with id:`, id);
+      throw new NotFoundException('No document deleted.');
+    }
+
+    return result;
   }
 
   async startTransaction() {

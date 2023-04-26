@@ -134,18 +134,27 @@ export class DatasetsService {
     );
   }
 
-  async trainDataset(datasetId: string, modelName: string) {
+  async trainDataset(
+    datasetId: string,
+    modelName: string,
+    authentication: string,
+  ) {
     const dataset = await this.getDatasetById(datasetId);
     return lastValueFrom(
       this.trainerClient.emit('train', {
         datasetId,
         modelName,
         images: dataset.images,
+        Authentication: authentication,
       }),
     );
   }
 
   getDatasetById(datasetId: string) {
-    return this.datasetsRepository.findOne({ _id: datasetId });
+    return this.datasetsRepository.findById(datasetId);
+  }
+
+  removeDataset(datasetId: string) {
+    return this.datasetsRepository.findByIdAndDelete(datasetId);
   }
 }
