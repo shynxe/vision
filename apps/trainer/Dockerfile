@@ -7,6 +7,6 @@ COPY apps/trainer/.env .
 COPY apps/trainer/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY apps/trainer/main.py .
+COPY apps/trainer/app .
 
 CMD ["python", "main.py"]

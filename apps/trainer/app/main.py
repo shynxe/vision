@@ -2,6 +2,8 @@ import os
 import pika
 from dotenv import load_dotenv
 
+from train import handle_train
+
 print(' [*] Waiting for messages. To exit press CTRL+C')
 load_dotenv()
 
@@ -20,16 +22,9 @@ channel = connection.channel()
 # Declare the trainer queue
 channel.queue_declare(queue=trainer_queue, durable=True)
 
-# Define a function to handle incoming messages
-def callback(ch, method, properties, body):
-    # Do something with the message body
-    print(body)
-
-    # Acknowledge the message
-    ch.basic_ack(delivery_tag=method.delivery_tag)
 
 # Start consuming messages from the trainer queue
-channel.basic_consume(queue=trainer_queue, on_message_callback=callback, auto_ack=False)
+channel.basic_consume(queue=trainer_queue, on_message_callback=handle_train, auto_ack=False)
 
 try:
     channel.start_consuming()
