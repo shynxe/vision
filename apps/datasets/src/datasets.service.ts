@@ -7,7 +7,7 @@ import {
   TRAINER_SERVICE,
 } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
-import { lastValueFrom } from 'rxjs';
+import { catchError, lastValueFrom, tap, throwError } from 'rxjs';
 import { Dataset } from './schemas/dataset.schema';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
@@ -140,13 +140,23 @@ export class DatasetsService {
     authentication: string,
   ) {
     const dataset = await this.getDatasetById(datasetId);
-    return lastValueFrom(
-      this.trainerClient.emit('train', {
-        datasetId,
-        modelName,
-        images: dataset.images,
-        Authentication: authentication,
-      }),
+    return await lastValueFrom(
+      this.trainerClient
+        .send('train', {
+          datasetId,
+          modelName,
+          images: dataset.images,
+          Authentication: authentication,
+        })
+        .pipe(
+          tap((response) => {
+            console.log(response);
+          }),
+          catchError((error) => {
+            console.log(error);
+            return throwError(error);
+          }),
+        ),
     );
   }
 

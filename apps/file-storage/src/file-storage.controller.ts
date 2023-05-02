@@ -51,17 +51,17 @@ export class FileStorageController {
   @Post('upload-multiple')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files'))
-  uploadMultipleFiles(@UploadedFiles() files: Array<Express.Multer.File>) {
-    this.logger.log(
-      'Uploaded ' +
-        files.length +
-        ' file(s): ' +
-        files.map((file) => file?.filename).join(', '),
+  uploadMultipleFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('datasetId') datasetId: string,
+    @Cookies('Authentication') authentication: string,
+  ) {
+    this.logger.log('Uploaded (' + files?.length + ') files');
+    return this.fileStorageService.handleUploadedFiles(
+      datasetId,
+      files,
+      authentication,
     );
-    return files.map((file) => ({
-      originalName: file?.originalname,
-      fileName: file?.filename,
-    }));
   }
 
   // TODO: remove @Header and replace with @Res() res: Response

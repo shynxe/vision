@@ -81,9 +81,10 @@ services:
         condition: service_healthy
 
   rabbitmq:
-    image: rabbitmq
+    image: rabbitmq:3.10.21-management-alpine
     ports:
-      - '5672:5672'
+      - 5672:5672
+      - 15672:15672
     healthcheck:
       test: rabbitmq-diagnostics check_port_connectivity
       interval: 30s

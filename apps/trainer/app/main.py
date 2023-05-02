@@ -3,9 +3,13 @@ import pika
 from dotenv import load_dotenv
 
 from train import handle_train
+from prepare import prepare_machine
 
-print(' [*] Waiting for messages. To exit press CTRL+C')
 load_dotenv()
+
+# Prepare machine for training
+print(" [*] Preparing machine for training")
+prepare_machine()
 
 # Read the RabbitMQ URI from the environment variable
 rabbitmq_uri = os.environ['RABBIT_MQ_URI']
@@ -22,10 +26,10 @@ channel = connection.channel()
 # Declare the trainer queue
 channel.queue_declare(queue=trainer_queue, durable=True)
 
-
 # Start consuming messages from the trainer queue
 channel.basic_consume(queue=trainer_queue, on_message_callback=handle_train, auto_ack=False)
 
+print(' [*] Waiting for messages. To exit press CTRL+C')
 try:
     channel.start_consuming()
 except KeyboardInterrupt:

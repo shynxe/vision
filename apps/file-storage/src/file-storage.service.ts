@@ -24,6 +24,7 @@ export class FileStorageService {
     return new StreamableFile(file);
   }
 
+  // TODO: replace this with handleUploadedFiles
   async handleUploadedFile(
     datasetId: string,
     file: Express.Multer.File,
@@ -66,6 +67,17 @@ export class FileStorageService {
         datasetId,
         Authentication: authentication,
       }),
+    );
+  }
+
+  // TODO: replace handleUploadedFile with this
+  handleUploadedFiles(
+    datasetId: string,
+    files: Express.Multer.File[],
+    authentication: string,
+  ) {
+    return files.map((file) =>
+      this.handleUploadedFile(datasetId, file, authentication),
     );
   }
 }
