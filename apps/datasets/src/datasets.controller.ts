@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -19,6 +20,7 @@ import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { FileUploadedPayload } from './dto/FileUploadedPayload';
 import { BoundingBox } from './schemas/image.schema';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
+import validateBoundingBoxes from './helpers/validateBoundingBoxes';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -91,6 +93,12 @@ export class DatasetsController {
       throw new UnauthorizedException(
         'User does not have write access to dataset',
       );
+    }
+
+    try {
+      validateBoundingBoxes(boundingBoxes);
+    } catch (e) {
+      throw new BadRequestException(e.message);
     }
 
     return this.datasetsService.updateBoundingBoxesForImage(
