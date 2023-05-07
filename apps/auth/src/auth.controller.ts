@@ -1,4 +1,10 @@
-import { Controller, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -27,8 +33,12 @@ export class AuthController {
     @Cookies('Authentication') token: string,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const user = await this.authService.refresh(token, response);
-    response.send(user);
+    try {
+      const user = await this.authService.refresh(token, response);
+      response.send(user);
+    } catch (e) {
+      throw new UnauthorizedException();
+    }
   }
 
   @MessagePattern('validate_user')
