@@ -8,10 +8,13 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create(AuthModule);
   const rmqService = app.get<RmqService>(RmqService);
-  app.enableCors();
+  const configService = app.get(ConfigService);
+  app.enableCors({
+    origin: [configService.get('CORS_ORIGIN').split(',')],
+    credentials: true,
+  });
   app.connectMicroservice<RmqOptions>(rmqService.getOptions('AUTH', true));
   app.useGlobalPipes(new ValidationPipe());
-  const configService = app.get(ConfigService);
   await app.startAllMicroservices();
   await app.listen(configService.get('PORT'));
 }

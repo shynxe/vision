@@ -6,9 +6,12 @@ import { RmqService } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(DatasetsModule);
-  app.useGlobalPipes(new ValidationPipe());
-  app.enableCors();
   const configService = app.get(ConfigService);
+  app.useGlobalPipes(new ValidationPipe());
+  app.enableCors({
+    origin: [configService.get('CORS_ORIGIN').split(',')],
+    credentials: true,
+  });
   const rmqService = app.get<RmqService>(RmqService);
   app.connectMicroservice(rmqService.getOptions('DATASETS', true));
   await app.startAllMicroservices();

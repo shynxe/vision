@@ -23,8 +23,9 @@ export class AuthService {
     };
 
     const expires = new Date();
+    const currentSeconds = expires.getSeconds();
     expires.setSeconds(
-      expires.getSeconds() + this.configService.get('JWT_EXPIRATION'),
+      currentSeconds + Number(this.configService.get('JWT_EXPIRATION')),
     );
 
     const token = this.jwtService.sign(tokenPayload);
@@ -33,6 +34,14 @@ export class AuthService {
       httpOnly: true,
       expires,
     });
+  }
+
+  async refresh(token: string, response: Response) {
+    const decodedToken = await this.jwtService.verifyAsync(token);
+    const userId = decodedToken.userId;
+    const user = await this.usersService.getUser({ _id: userId });
+    await this.login(user, response);
+    return user;
   }
 
   logout(response: Response) {

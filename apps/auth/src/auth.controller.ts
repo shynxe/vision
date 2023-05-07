@@ -6,6 +6,7 @@ import { CurrentUser } from './current-user.decorator';
 import JwtAuthGuard from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { User } from './users/schemas/user.schema';
+import { Cookies } from '@app/common/cookies/cookies.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -18,6 +19,15 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.authService.login(user, response);
+    response.send(user);
+  }
+
+  @Post('refresh')
+  async refresh(
+    @Cookies('Authentication') token: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user = await this.authService.refresh(token, response);
     response.send(user);
   }
 
