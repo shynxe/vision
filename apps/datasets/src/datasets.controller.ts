@@ -49,12 +49,28 @@ export class DatasetsController {
   }
 
   @Get()
-  async getDatasets() {
-    return this.datasetsService.getDatasets();
+  @UseGuards(JwtAuthGuard)
+  async getDatasets(@CurrentUser() user: User) {
+    return this.datasetsService.getDatasetsForUser(user);
   }
 
   @Get(':id')
-  async getDatasetById(@Param('id') datasetId: string) {
+  @UseGuards(JwtAuthGuard)
+  async getDatasetById(
+    @Param('id') datasetId: string,
+    @CurrentUser() user: User,
+  ) {
+    const userHasReadAccess = await this.datasetsService.userHasReadAccess(
+      datasetId,
+      user,
+    );
+
+    if (!userHasReadAccess) {
+      throw new UnauthorizedException(
+        'User does not have read access to dataset',
+      );
+    }
+
     return this.datasetsService.getDatasetById(datasetId);
   }
 

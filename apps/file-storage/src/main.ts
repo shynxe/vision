@@ -7,6 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(FileStorageModule);
   const configService = app.get(ConfigService);
   const rmqService = app.get<RmqService>(RmqService);
+  app.enableCors();
   app.connectMicroservice(rmqService.getOptions('FILESTORAGE', true));
   await app.startAllMicroservices();
   await app.listen(configService.get('PORT'));

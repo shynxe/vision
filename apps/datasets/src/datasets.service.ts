@@ -53,6 +53,13 @@ export class DatasetsService {
     return this.datasetsRepository.find({});
   }
 
+  async getDatasetsForUser(user: User) {
+    const userDatasets = user.datasets;
+    return await this.datasetsRepository.find({
+      _id: { $in: userDatasets },
+    });
+  }
+
   async addUploadedFile(fileUrl: string, datasetId: string) {
     const newImage = {
       url: fileUrl,
@@ -101,9 +108,14 @@ export class DatasetsService {
     );
   }
 
-  async userHasReadAccess(datasetId: any, user: User) {
+  async userHasReadAccess(datasetId: string, user: User) {
     // check if dataset is public through datasets service
     const dataset = await this.datasetsRepository.findOne({ _id: datasetId });
+
+    if (!dataset) {
+      return false;
+    }
+
     if (dataset.isPublic) {
       return true;
     }
