@@ -94,17 +94,17 @@ export class DatasetsService {
       throw new Error('File not found');
     }
 
-    await this.datasetsRepository.findOneAndUpdate(
-      { _id: removeFileRequest.datasetId },
-      { $pull: { images: { url: removeFileRequest.fileUrl } } },
-    );
-
     await lastValueFrom(
       this.fileStorageClient.emit('file_removed', {
         fileUrl: removeFileRequest.fileUrl,
         datasetId: removeFileRequest.datasetId,
         Authentication: authentication,
       }),
+    );
+
+    return await this.datasetsRepository.findOneAndUpdate(
+      { _id: removeFileRequest.datasetId },
+      { $pull: { images: { url: removeFileRequest.fileUrl } } },
     );
   }
 

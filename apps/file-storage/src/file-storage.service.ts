@@ -71,13 +71,15 @@ export class FileStorageService {
   }
 
   // TODO: replace handleUploadedFile with this
-  handleUploadedFiles(
+  async handleUploadedFiles(
     datasetId: string,
     files: Express.Multer.File[],
     authentication: string,
   ) {
-    return files.map((file) =>
-      this.handleUploadedFile(datasetId, file, authentication),
-    );
+    const promises = files.map((file) => {
+      return this.handleUploadedFile(datasetId, file, authentication);
+    });
+
+    return await Promise.all(promises);
   }
 }

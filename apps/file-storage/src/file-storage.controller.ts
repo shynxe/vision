@@ -48,12 +48,12 @@ export class FileStorageController {
     );
   }
 
-  @Post('upload-multiple')
+  @Post('upload/:datasetId')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files'))
   uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
-    @Body('datasetId') datasetId: string,
+    @Param('datasetId') datasetId: string,
     @Cookies('Authentication') authentication: string,
   ) {
     this.logger.log('Uploaded (' + files?.length + ') files');

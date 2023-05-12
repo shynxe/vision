@@ -36,7 +36,7 @@ export class DatasetsController {
     return this.datasetsService.createDataset(datasetRequest, authentication);
   }
 
-  @Post('removeFile')
+  @Post('images/remove')
   @UseGuards(JwtAuthGuard)
   async removeFileFromDataset(
     @Body() removeFileRequest: RemoveFileRequest,
@@ -91,7 +91,7 @@ export class DatasetsController {
     return this.datasetsService.userHasReadAccess(datasetId, user);
   }
 
-  @Post('updateBoundingBoxes')
+  @Post('images/boxes')
   @UseGuards(JwtAuthGuard)
   async updateBoundingBoxesForImage(
     @Payload('datasetId') datasetId: string,
