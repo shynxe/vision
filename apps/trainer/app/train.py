@@ -34,7 +34,7 @@ def handle_train(ch, method, properties, body):
         return
 
     try:
-        dataset_path = prepare_dataset(dataset_id)
+        dataset_path = prepare_dataset(dataset_id, labels)
     except Exception as e:
         print(" [x] Error in preparing dataset: {}".format(e))
         print(traceback.format_exc())
@@ -70,8 +70,8 @@ def handle_train(ch, method, properties, body):
 def train_model(yaml_path):
     # Train the model
     print(" [*] Training model with .yaml file: {}".format(yaml_path))
-    model = YOLO('yolov8n.yaml')
-    model.train(data='./' + yaml_path, epochs=10)
+    model = YOLO('yolov8n.pt')
+    model.train(data='./' + yaml_path, epochs=40)
 
 
 def respond_error(ch, properties, message):
@@ -147,6 +147,7 @@ def download_dataset(dataset_path, images, cookies):
                     f.write(label + "\n")
 
     print(" [*] Downloaded {} images".format(len(images)))
+    print(" [*] Wrote labels to disk")
 
 
 # Parse data from the message
@@ -173,10 +174,12 @@ def parse_input(data):
         for bounding_box in image['boundingBoxes']:
             label = bounding_box['label']
             x, y, w, h = bounding_box['x'], bounding_box['y'], bounding_box['width'], bounding_box['height']
+            center_x = x + w / 2
+            center_y = y + h / 2
             if label not in labels:
                 labels[label] = label_count
                 label_count += 1
-            bounding_boxes.append(f"{labels[label]} {x} {y} {w} {h}")
+            bounding_boxes.append(f"{labels[label]} {center_x} {center_y} {w} {h}")
 
         images[filename] = bounding_boxes
 

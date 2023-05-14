@@ -27,7 +27,7 @@ def empty_folder_contents(path):
                 print(e)
 
 
-def prepare_dataset(dataset_name):
+def prepare_dataset(dataset_name, labels):
     print(" [*] Preparing dataset folder structure")
     dataset_path = get_dataset_path(dataset_name)
     training_path = os.path.join(trainings_folder_name, dataset_name)
@@ -48,7 +48,8 @@ def prepare_dataset(dataset_name):
     except Exception as e:
         print(" [x] Error in creating folders: {}".format(e))
         print(traceback.format_exc())
-        return
+        raise e
+
     print(" [*] Folder structure created")
     print_tree(folders)
 
@@ -57,11 +58,11 @@ def prepare_dataset(dataset_name):
     yaml_path = get_yaml_path(dataset_name)
 
     try:
-        create_yaml(yaml_path)
+        create_yaml(yaml_path, dataset_name, labels)
     except Exception as e:
         print(" [x] Error in creating .yaml file: {}".format(e))
         print(traceback.format_exc())
-        return
+        raise e
 
     return dataset_path
 
@@ -78,19 +79,16 @@ def get_dataset_path(dataset_id):
     return os.path.join(datasets_folder_name, dataset_id)
 
 
-def create_yaml(yaml_path):
-    yaml_filename = os.path.basename(yaml_path)
-    yaml_filename_no_ext = os.path.splitext(yaml_filename)[0]
-
+def create_yaml(yaml_path, dataset_id, labels):
     with open(yaml_path, "w") as yaml_file:
-        yaml_file.write("path: {}\n".format(yaml_filename_no_ext))
+        yaml_file.write("path: {}\n".format(dataset_id))
         yaml_file.write("train: images/train\n")
         yaml_file.write("val: images/valid\n")
         yaml_file.write("test: images/test\n")
         yaml_file.write("\n")
         yaml_file.write("names:\n")
-        yaml_file.write("  0: no_mask\n")
-        yaml_file.write("  1: mask\n")
+        for label in labels:
+            yaml_file.write(" {}: {}\n".format(labels[label], label))
 
 
 def print_tree(folders):

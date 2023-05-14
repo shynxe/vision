@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -20,6 +21,8 @@ import { BypassAuth } from '@app/common/auth/bypass.decorator';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { FileRemovedPayload } from './dto/FileRemovedPayload';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
+import { StorageKeyGuard } from './guards/storage-key-guard';
+import imageStorage from './storage/imageStorage';
 
 @Controller()
 export class FileStorageController {
@@ -50,7 +53,7 @@ export class FileStorageController {
 
   @Post('upload/:datasetId')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FilesInterceptor('files'))
+  @UseInterceptors(FilesInterceptor('files', null, { storage: imageStorage }))
   uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Param('datasetId') datasetId: string,
@@ -90,7 +93,22 @@ export class FileStorageController {
   @UseGuards(JwtAuthGuard)
   async handleFileRemoved(@Payload() payload: FileRemovedPayload) {
     const { datasetId, fileUrl } = payload;
-    return this.fileStorageService.removeFile(datasetId, fileUrl);
+    return this.fileStorageService.removeFileByUrl(datasetId, fileUrl);
+  }
+
+  @Post('trainer/upload')
+  @UseGuards(StorageKeyGuard)
+  @UseInterceptors(FileInterceptor('model', { dest: '/tmp/uploads' }))
+  async uploadTrainerModel(
+    @UploadedFile() model: Express.Multer.File,
+    @Body('datasetId') datasetId: string,
+  ) {
+    if (!model) {
+      throw new BadRequestException('Missing model file');
+    }
+    return {
+      model,
+    };
   }
 
   /* TODO: endpoint to get all files in a dataset using stream.pipe

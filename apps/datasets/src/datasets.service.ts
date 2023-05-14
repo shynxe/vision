@@ -12,6 +12,7 @@ import { Dataset } from './schemas/dataset.schema';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { BoundingBox } from './schemas/image.schema';
+import { Model } from '@app/common/types/model.schema';
 
 @Injectable()
 export class DatasetsService {
@@ -178,5 +179,19 @@ export class DatasetsService {
 
   removeDataset(datasetId: string) {
     return this.datasetsRepository.findByIdAndDelete(datasetId);
+  }
+
+  addModel(datasetId: string, model: Model) {
+    return this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId },
+      { $push: { models: model } },
+    );
+  }
+
+  removeModel(datasetId: string, modelId: string) {
+    return this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId },
+      { $pull: { models: { _id: modelId } } },
+    );
   }
 }

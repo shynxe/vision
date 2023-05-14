@@ -21,6 +21,7 @@ import { FileUploadedPayload } from './dto/FileUploadedPayload';
 import { BoundingBox } from './schemas/image.schema';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
 import validateBoundingBoxes from './helpers/validateBoundingBoxes';
+import { Model } from '@app/common/types/model.schema';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -138,7 +139,6 @@ export class DatasetsController {
     );
   }
 
-  // remove dataset endpoint
   @Post('remove')
   @UseGuards(JwtAuthGuard)
   async removeDataset(
@@ -157,5 +157,47 @@ export class DatasetsController {
     }
 
     return this.datasetsService.removeDataset(datasetId);
+  }
+
+  @Post('models/add')
+  @UseGuards(JwtAuthGuard)
+  async addModel(
+    @Payload('datasetId') datasetId: string,
+    @Payload('model') model: Model,
+    @CurrentUser() user: User,
+  ) {
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    return this.datasetsService.addModel(datasetId, model);
+  }
+
+  @Post('models/remove')
+  @UseGuards(JwtAuthGuard)
+  async removeModel(
+    @Payload('datasetId') datasetId: string,
+    @Payload('modelId') modelId: string,
+    @CurrentUser() user: User,
+  ) {
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    return this.datasetsService.removeModel(datasetId, modelId);
   }
 }

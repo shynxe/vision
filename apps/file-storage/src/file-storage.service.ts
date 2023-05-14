@@ -47,15 +47,27 @@ export class FileStorageService {
     };
   }
 
-  async removeFile(datasetId: string, fileUrl: string) {
+  async removeFileByUrl(datasetId: string, fileUrl: string) {
     const filename = fileUrl.split('/').pop();
-    const imagePath = path.join('/tmp/uploads/', datasetId, filename);
+    const filePath = path.join('/tmp/uploads/', datasetId, filename);
 
     // remove from disk storage
-    await fs.unlink(imagePath);
+    await fs.unlink(filePath);
 
     return {
       fileUrl,
+      datasetId,
+    };
+  }
+
+  async removeFileByName(datasetId: string, filename: string) {
+    const filePath = path.join('/tmp/uploads/', datasetId, filename);
+
+    // remove from disk storage
+    await fs.unlink(filePath);
+
+    return {
+      filename,
       datasetId,
     };
   }
@@ -81,5 +93,11 @@ export class FileStorageService {
     });
 
     return await Promise.all(promises);
+  }
+
+  validateApiKey(apiKey: string) {
+    const key = this.config.get<string>('API_KEY');
+
+    return key === apiKey;
   }
 }
