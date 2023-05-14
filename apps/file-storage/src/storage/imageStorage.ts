@@ -5,8 +5,9 @@ import * as fs from 'fs';
 import { Request } from 'express';
 import { UploadRequest } from '../dto/UploadRequest';
 
-const localStorage: StorageEngine = diskStorage({
+const imageStorage: StorageEngine = diskStorage({
   destination: function (req: UploadRequest, file: Express.Multer.File, cb) {
+    console.log('received file', file);
     const datasetId = req.params.datasetId;
     const user = req.user;
 
@@ -39,4 +40,4 @@ const localStorage: StorageEngine = diskStorage({
   },
 });
 
-export default localStorage;
+export default imageStorage;
