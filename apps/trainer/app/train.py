@@ -2,16 +2,14 @@ import json
 import os
 
 import pika
-from dotenv import load_dotenv
 import traceback
 from ultralytics import YOLO
 
 import requests
+import shutil
 
-from prepare import prepare_dataset, get_yaml_path
-
-load_dotenv()
-filestorage_image_url = os.environ['FILESTORAGE_IMAGE_URL']
+from prepare import prepare_dataset, get_yaml_path, get_model_exports_paths
+from links import get_image_download_url, get_model_upload_url
 
 
 def handle_train(ch, method, properties, body):
@@ -25,7 +23,11 @@ def handle_train(ch, method, properties, body):
     cookies = {'Authentication': authentication}
 
     try:
-        images, labels, model_name, dataset_id = parse_input(data)
+        images, labels = _get_dataset(data)
+        model_name = _get_model_name(data)
+        dataset_id = _get_dataset_id(data)
+        hyper_parameters = _get_hyper_parameters(data)
+
     except Exception as e:
         print(" [x] Error in parsing input: {}".format(e))
         print(traceback.format_exc())
@@ -43,7 +45,7 @@ def handle_train(ch, method, properties, body):
         return
 
     try:
-        download_dataset(dataset_path, images, cookies)
+        _download_dataset(dataset_path, images, cookies)
     except Exception as e:
         print(" [x] Error in downloading images: {}".format(e))
         print(traceback.format_exc())
@@ -59,19 +61,41 @@ def handle_train(ch, method, properties, body):
 
     # Train the model
     try:
-        train_model(yaml_path)
-        print(" [*] Job done.")
+        model = _train_model(yaml_path, hyper_parameters)
+        print(" [*] Training done.")
+        model.export(format='torchscript')
+        model.export(format='onnx')
+        model.export(format='tflite')
+        print(" [*] Model exported.")
     except Exception as e:
         print(" [x] Error in training model: {}".format(e))
         print(traceback.format_exc())
         return
 
+    # Upload the model
+    try:
+        _upload_results(dataset_id, model_name, cookies)
+        print(" [*] Model uploaded.")
+    except Exception as e:
+        print(" [x] Error in uploading model: {}".format(e))
+        print(traceback.format_exc())
+        return
 
-def train_model(yaml_path):
+    try:
+        _clean_up()
+        print(" [*] Clean up done.")
+    except Exception as e:
+        print(" [x] Error in cleaning up: {}".format(e))
+        print(traceback.format_exc())
+        return
+
+
+def _train_model(yaml_path, hyper_parameters):
     # Train the model
     print(" [*] Training model with .yaml file: {}".format(yaml_path))
     model = YOLO('yolov8n.pt')
-    model.train(data='./' + yaml_path, epochs=40)
+    model.train(data='./' + yaml_path, **hyper_parameters)
+    return model
 
 
 def respond_error(ch, properties, message):
@@ -99,7 +123,7 @@ def reply_to_message(ch, properties, response):
 
 # Send a GET request to each of the images in the message
 # and save the image to disk
-def download_dataset(dataset_path, images, cookies):
+def _download_dataset(dataset_path, images, cookies):
     # split images into train, test, valid
     # then download them and save them to disk in the correct folder
     # train: 80%
@@ -137,7 +161,8 @@ def download_dataset(dataset_path, images, cookies):
             # for each image, create a .txt file with the labels
             # the .txt file should be in the labels folder, with the same name as the image
             # e.g. images/train/1.jpg -> labels/train/1.txt
-            image_response = requests.get(filestorage_image_url + dataset_id + "/" + image_name, cookies=cookies)
+            _image_download_url = get_image_download_url(dataset_id, image_name)
+            image_response = requests.get(_image_download_url, cookies=cookies)
             with open(dataset_path + "/images/" + stage + "/" + image_name, 'wb') as f:
                 f.write(image_response.content)
 
@@ -150,17 +175,48 @@ def download_dataset(dataset_path, images, cookies):
     print(" [*] Wrote labels to disk")
 
 
+def _upload_results(dataset_id, model_name, cookies):
+    _model_upload_url = get_model_upload_url(dataset_id)
+    model_exports_paths = get_model_exports_paths()
+
+    for model_type, export_path in model_exports_paths.items():
+        model_filename = model_name + os.path.splitext(export_path)[1]  # Get extension from the export path
+
+        files = {
+            "model": (model_filename, open(export_path, "rb"))
+        }
+
+        upload_response = requests.post(_model_upload_url, files=files, cookies=cookies)
+        if upload_response.status_code != 201:
+            print(" [*] Error uploading: {}".format(upload_response.text))
+            raise Exception(f"Error uploading {model_type} model to trainer")
+
+        # {
+        #     "originalName": "_111510370_060683565.txt",
+        #     "fileName": "5e31c447cd81769ce1b5585ab3a2d2a0",
+        #     "destination": "/tmp/uploads/6435ade2f7613b0080f7984d/models",
+        #     "fileUrl": "http://localhost:3002/model/6435ade2f7613b0080f7984d/5e31c447cd81769ce1b5585ab3a2d2a0"
+        # }
+
+        # notify datasets service that the model has been uploaded
+        # by sending a POST request to /model/complete
+        # with the url of the model
+        # model_url = upload_response.json()['fileUrl']
+        # _datasets_service_url = get_datasets_service_url()
+        # model_complete_response = requests.post(_datasets_service_url, json={"url": model_url}, cookies=cookies)
+        # if model_complete_response.status_code != 200:
+        #     print(" [*] Error notifying datasets service: {}".format(model_complete_response.text))
+        #     raise Exception(f"Error notifying datasets service about {model_type} model upload")
+        #
+        print(f" [*] Uploaded {model_type} model to trainer")
+
+
 # Parse data from the message
 # Return a list of images and a list of labels
-def parse_input(data):
+def _get_dataset(data):
     images = {}
     labels = {}
     label_count = 0
-    model_name = data['modelName']
-    dataset_id = data['datasetId']
-
-    if model_name is None:
-        raise Exception("No model name in message")
 
     if data['images'] is None:
         raise Exception("No images in message")
@@ -183,4 +239,29 @@ def parse_input(data):
 
         images[filename] = bounding_boxes
 
-    return images, labels, model_name, dataset_id
+    return images, labels
+
+
+def _get_model_name(data):
+    if data['modelName'] is None:
+        raise Exception("No modelName in message")
+    return data['modelName']
+
+
+def _get_dataset_id(data):
+    if data['datasetId'] is None:
+        raise Exception("No datasetId in message")
+    return data['datasetId']
+
+
+def _get_hyper_parameters(data):
+    hyper_params = {}
+    if data['hyperParameters'] is None:
+        return hyper_params
+
+    return data['hyperParameters']
+
+
+def _clean_up():
+    # clean up runs folder
+    shutil.rmtree('runs')

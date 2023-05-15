@@ -3,6 +3,8 @@ import traceback
 
 datasets_folder_name = "datasets"
 trainings_folder_name = "trainings"
+train_folder_path = os.path.join("runs", "detect", "train")
+weights_folder_path = os.path.join(train_folder_path, "weights")
 
 
 def prepare_machine():
@@ -73,6 +75,17 @@ def get_yaml_location(dataset_id):
 
 def get_yaml_path(dataset_id):
     return get_yaml_location(dataset_id) + "/" + dataset_id + ".yaml"
+
+
+def get_model_exports_paths():
+    pytorch_export = os.path.join(weights_folder_path, "best.pt")
+    onnx_export = os.path.join(weights_folder_path, "best.onnx")
+    torchscript_export = os.path.join(weights_folder_path, "best.torchscript")
+    return {
+        "pytorch": pytorch_export,
+        "onnx": onnx_export,
+        "torchscript": torchscript_export,
+    }
 
 
 def get_dataset_path(dataset_id):

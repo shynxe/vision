@@ -4,10 +4,15 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Request } from 'express';
 import { UploadRequest } from '../dto/UploadRequest';
+import { STORAGE_BASE_PATH } from '../constants/storage';
+
+const IMAGES_PATH = 'images';
+export const getImageDiskPath = (datasetId: string, filename: string) => {
+  return path.join(STORAGE_BASE_PATH, datasetId, IMAGES_PATH, filename);
+};
 
 const imageStorage: StorageEngine = diskStorage({
   destination: function (req: UploadRequest, file: Express.Multer.File, cb) {
-    console.log('received file', file);
     const datasetId = req.params.datasetId;
     const user = req.user;
 
@@ -31,7 +36,7 @@ const imageStorage: StorageEngine = diskStorage({
       return;
     }
 
-    const folderPath = path.join('/tmp/uploads', datasetId);
+    const folderPath = path.join(STORAGE_BASE_PATH, datasetId, IMAGES_PATH);
     fs.mkdirSync(folderPath, { recursive: true });
     cb(null, folderPath);
   },

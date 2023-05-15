@@ -12,7 +12,7 @@ import { Dataset } from './schemas/dataset.schema';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { BoundingBox } from './schemas/image.schema';
-import { Model } from '@app/common/types/model.schema';
+import { HyperParameters, Model } from '@app/common/types/model.schema';
 
 @Injectable()
 export class DatasetsService {
@@ -61,10 +61,10 @@ export class DatasetsService {
     });
   }
 
-  async addUploadedFile(fileUrl: string, datasetId: string) {
+  async addUploadedImageToDataset(imageUrl: string, datasetId: string) {
     const newImage = {
-      url: fileUrl,
-      name: fileUrl.split('/').pop(),
+      url: imageUrl,
+      name: imageUrl.split('/').pop(),
       boundingBoxes: [],
     };
 
@@ -150,6 +150,7 @@ export class DatasetsService {
   async trainDataset(
     datasetId: string,
     modelName: string,
+    hyperParams: HyperParameters,
     authentication: string,
   ) {
     const dataset = await this.getDatasetById(datasetId);
@@ -158,12 +159,16 @@ export class DatasetsService {
         .send('train', {
           datasetId,
           modelName,
+          hyperParameters: hyperParams,
           images: dataset.images,
           Authentication: authentication,
         })
         .pipe(
           tap((response) => {
             console.log(response);
+            if (response.success) {
+              console.log('success');
+            }
           }),
           catchError((error) => {
             console.log(error);

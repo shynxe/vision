@@ -21,7 +21,7 @@ import { FileUploadedPayload } from './dto/FileUploadedPayload';
 import { BoundingBox } from './schemas/image.schema';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
 import validateBoundingBoxes from './helpers/validateBoundingBoxes';
-import { Model } from '@app/common/types/model.schema';
+import { HyperParameters, Model } from '@app/common/types/model.schema';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -75,11 +75,11 @@ export class DatasetsController {
     return this.datasetsService.getDatasetById(datasetId);
   }
 
-  @EventPattern('file_uploaded')
+  @EventPattern('image_uploaded')
   @UseGuards(JwtAuthGuard)
   async fileUploaded(@Payload() payload: FileUploadedPayload) {
     const { fileUrl, datasetId } = payload;
-    return this.datasetsService.addUploadedFile(fileUrl, datasetId);
+    return this.datasetsService.addUploadedImageToDataset(fileUrl, datasetId);
   }
 
   @MessagePattern('user_has_read_access')
@@ -130,11 +130,13 @@ export class DatasetsController {
   async trainDataset(
     @Payload('datasetId') datasetId: string,
     @Payload('modelName') modelName: string,
+    @Payload('hyperParameters') hyperParameters: HyperParameters,
     @Cookies('Authentication') authentication: string,
   ) {
     return this.datasetsService.trainDataset(
       datasetId,
       modelName,
+      hyperParameters,
       authentication,
     );
   }

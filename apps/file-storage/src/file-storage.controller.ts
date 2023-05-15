@@ -21,8 +21,8 @@ import { BypassAuth } from '@app/common/auth/bypass.decorator';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { FileRemovedPayload } from './dto/FileRemovedPayload';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
-import { StorageKeyGuard } from './guards/storage-key-guard';
 import imageStorage from './storage/imageStorage';
+import modelStorage from './storage/modelStorage';
 
 @Controller()
 export class FileStorageController {
@@ -44,23 +44,23 @@ export class FileStorageController {
     @Cookies('Authentication') authentication: string,
   ) {
     this.logger.log('Uploaded file: ' + file?.filename);
-    return await this.fileStorageService.handleUploadedFile(
+    return await this.fileStorageService.handleUploadedImage(
       datasetId,
       file,
       authentication,
     );
   }
 
-  @Post('upload/:datasetId')
+  @Post('upload/images/:datasetId')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FilesInterceptor('files', null, { storage: imageStorage }))
+  @UseInterceptors(FilesInterceptor('images', null, { storage: imageStorage }))
   uploadMultipleFiles(
     @UploadedFiles() files: Express.Multer.File[],
     @Param('datasetId') datasetId: string,
     @Cookies('Authentication') authentication: string,
   ) {
     this.logger.log('Uploaded (' + files?.length + ') files');
-    return this.fileStorageService.handleUploadedFiles(
+    return this.fileStorageService.handleUploadedImages(
       datasetId,
       files,
       authentication,
@@ -86,7 +86,28 @@ export class FileStorageController {
       throw new UnauthorizedException();
     }
 
-    return this.fileStorageService.getFile(datasetId, filename);
+    return this.fileStorageService.getImage(datasetId, filename);
+  }
+
+  @Get('model/:datasetId/:filename')
+  @Header('Content-Type', 'application/octet-stream')
+  @BypassAuth()
+  @UseGuards(JwtAuthGuard)
+  public async getModel(
+    @Param('datasetId') datasetId: string,
+    @Param('filename') filename: string,
+    @Cookies('Authentication') authentication: string,
+  ): Promise<StreamableFile> {
+    // check if user has access to dataset
+    const userHasAccess = await this.fileStorageService.hasReadAccess(
+      datasetId,
+      authentication,
+    );
+    if (!userHasAccess) {
+      throw new UnauthorizedException();
+    }
+
+    return this.fileStorageService.getModel(datasetId, filename);
   }
 
   @EventPattern('file_removed')
@@ -96,19 +117,17 @@ export class FileStorageController {
     return this.fileStorageService.removeFileByUrl(datasetId, fileUrl);
   }
 
-  @Post('trainer/upload')
-  @UseGuards(StorageKeyGuard)
-  @UseInterceptors(FileInterceptor('model', { dest: '/tmp/uploads' }))
+  @Post('upload/model/:datasetId')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('model', { storage: modelStorage }))
   async uploadTrainerModel(
     @UploadedFile() model: Express.Multer.File,
-    @Body('datasetId') datasetId: string,
+    @Param('datasetId') datasetId: string,
   ) {
     if (!model) {
       throw new BadRequestException('Missing model file');
     }
-    return {
-      model,
-    };
+    return this.fileStorageService.handleUploadedModel(datasetId, model);
   }
 
   /* TODO: endpoint to get all files in a dataset using stream.pipe
