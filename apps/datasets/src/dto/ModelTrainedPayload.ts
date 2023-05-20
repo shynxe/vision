@@ -1,5 +1,5 @@
-import { IsArray, IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { ModelFile, ModelStatus } from '@app/common/types/model';
+import { IsEnum, IsNotEmpty, IsObject, IsString } from 'class-validator';
+import { ModelFiles, ModelStatus } from '@app/common/types/model';
 
 export class ModelTrainedPayload {
   @IsString()
@@ -14,8 +14,8 @@ export class ModelTrainedPayload {
   @IsNotEmpty()
   status: ModelStatus;
 
-  @IsArray()
-  modelFiles: ModelFile[];
+  @IsObject()
+  modelFiles: ModelFiles;
 
   @IsString()
   message?: string;

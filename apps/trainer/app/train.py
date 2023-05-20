@@ -10,13 +10,14 @@ import requests
 import shutil
 
 from prepare import prepare_dataset, get_yaml_path, get_model_exports_paths
-from links import get_image_download_url, get_model_upload_url
+from links import get_image_download_url, get_model_upload_url, get_filestorage_url
 from constants import ModelStatus
 
 load_dotenv()
 datasets_queue = os.environ['RABBIT_MQ_DATASETS_QUEUE']
 model_trained_pattern = 'model_trained'
 
+RESUME_MODEL_FILENAME = 'resume.pt'
 
 def handle_train(ch, method, _, body):
     message = body.decode()
@@ -44,20 +45,22 @@ def handle_train(ch, method, _, body):
 
 def _train(data):
     authentication = data['Authentication']
+    resume = data.get('resume', False)
+    dataset = data.get('dataset', {})
     cookies = {'Authentication': authentication}
 
     try:
-        images, labels = _get_dataset(data)
+        images, labels = _get_dataset(dataset)
         model_name = _get_model_name(data)
         dataset_id = _get_dataset_id(data)
         hyper_parameters = _get_hyper_parameters(data)
-
     except Exception as e:
         print(" [x] Error in parsing input: {}".format(e))
         print(traceback.format_exc())
         return False, 'Error in parsing input'
 
     try:
+        _clean_up()
         dataset_path = prepare_dataset(dataset_id, labels)
     except Exception as e:
         print(" [x] Error in preparing dataset: {}".format(e))
@@ -75,8 +78,26 @@ def _train(data):
     print(" [*] .yaml file created: {}".format(yaml_path))
 
     # Train the model
+    if resume:
+        try:
+            models = dataset.get('models', [])
+            model = next((model for model in models if model['name'] == model_name), None)
+            if model is None:
+                return False, 'Model not found'
+
+            model_files = model.get('files', {})
+            pytorch_url = model_files.get('pytorch', {}).get('url')
+            if pytorch_url is None:
+                return False, 'Pytorch model not found'
+
+            _download_model(pytorch_url, cookies)
+        except Exception as e:
+            print(" [x] Error in downloading model: {}".format(e))
+            print(traceback.format_exc())
+            return False, 'Error in downloading model'
+
     try:
-        model = _train_model(yaml_path, hyper_parameters)
+        model = _train_model(yaml_path, hyper_parameters, resume)
         print(" [*] Training done.")
         model.export(format='torchscript')
         model.export(format='onnx')
@@ -99,10 +120,13 @@ def _train(data):
     return True, uploaded_models
 
 
-def _train_model(yaml_path, hyper_parameters):
+def _train_model(yaml_path, hyper_parameters, resume):
     # Train the model
     print(" [*] Training model with .yaml file: {}".format(yaml_path))
-    model = YOLO('yolov8n.pt')
+    if resume:
+        model = YOLO(RESUME_MODEL_FILENAME)
+    else:
+        model = YOLO('yolov8n.pt')
     model.train(data='./' + yaml_path, **hyper_parameters)
     return model
 
@@ -208,7 +232,7 @@ def _upload_results(dataset_id, model_name, cookies):
     _model_upload_url = get_model_upload_url(dataset_id)
     model_exports_paths = get_model_exports_paths()
 
-    uploaded_models = []
+    uploaded_files = {}
 
     for model_type, export_path in model_exports_paths.items():
         model_filename = model_name + os.path.splitext(export_path)[1]  # Get extension from the export path
@@ -230,12 +254,11 @@ def _upload_results(dataset_id, model_name, cookies):
         # }
 
         response = upload_response.json()
-        uploaded_models.append({
+        uploaded_files[model_type] = {
             "url": response["fileUrl"],
-            "modelType": model_type
-        })
+        }
         print(f" [*] Uploaded {model_type} model to trainer")
-    return uploaded_models
+    return uploaded_files
 
 
 # Parse data from the message
@@ -269,26 +292,46 @@ def _get_dataset(data):
     return images, labels
 
 
+def _download_model(pytorch_url, cookies):
+    print("pytorch_url", pytorch_url)
+    model_response = requests.get(pytorch_url, cookies=cookies)
+    if model_response.status_code != 200:
+        print(" [*] Error downloading model: {}".format(model_response.text))
+        raise Exception("Error downloading model")
+
+    print(" [*] Downloaded model")
+    model_filename = RESUME_MODEL_FILENAME
+    with open(model_filename, 'wb') as f:
+        f.write(model_response.content)
+
+    return model_filename
+
+
 def _get_model_name(data):
-    if data['modelName'] is None:
+    if 'modelName' not in data or data['modelName'] is None:
         raise Exception("No modelName in message")
     return data['modelName']
 
 
 def _get_dataset_id(data):
-    if data['datasetId'] is None:
+    if 'datasetId' not in data or data['datasetId'] is None:
         raise Exception("No datasetId in message")
     return data['datasetId']
 
 
 def _get_hyper_parameters(data):
     hyper_params = {}
-    if data['hyperParameters'] is None:
+    if 'hyperParameters' not in data or data['hyperParameters'] is None:
         return hyper_params
 
     return data['hyperParameters']
 
 
 def _clean_up():
-    # clean up runs folder
-    shutil.rmtree('runs')
+    dir_path = 'runs'
+    if os.path.exists(dir_path):
+        shutil.rmtree(dir_path)
+
+    resume_file = RESUME_MODEL_FILENAME
+    if os.path.isfile(resume_file):
+        os.remove(resume_file)

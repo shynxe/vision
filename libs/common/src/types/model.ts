@@ -14,9 +14,11 @@ export enum ModelStatus {
   UPLOADED = 'UPLOADED',
 }
 
-export type ModelFile = {
-  url: string;
-  modelType: string;
+export type FileType = 'pytorch' | 'onnx' | 'torchscript';
+export type ModelFiles = {
+  [key in FileType]?: {
+    url: string;
+  };
 };
 
 @Schema({ versionKey: false })
@@ -27,8 +29,8 @@ export class Model {
   })
   name: string;
 
-  @Prop({ default: [] })
-  files?: ModelFile[];
+  @Prop({ type: Object })
+  files?: ModelFiles;
 
   @Prop({ type: Object })
   hyperParameters: HyperParameters;

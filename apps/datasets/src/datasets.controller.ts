@@ -126,73 +126,13 @@ export class DatasetsController {
     );
   }
 
-  /**
-   * Handles the HTTP POST request for training a dataset.
-   * Requires authentication using JWT.
-   *
-   * @param {string} datasetId - The ID of the dataset to be trained.
-   * @param {string} modelName - The name of the model to be created.
-   * @param {HyperParameters} hyperParameters - The hyperparameters for the training process.
-   * @param {string} authentication - The authentication token provided in the request cookie.
-   * @param {User} user - The currently authenticated user.
-   * @returns {Promise<any>} - Returns a promise that resolves to the created model.
-   * @throws {UnauthorizedException} - Throws an exception if the user does not have write access to the dataset.
-   * @throws {BadRequestException} - Throws an exception if there is an error during training or model creation.
-   */
-  @Post('train')
-  @UseGuards(JwtAuthGuard)
-  async trainDataset(
-    @Payload('datasetId') datasetId: string,
-    @Payload('modelName') modelName: string,
-    @Payload('hyperParameters') hyperParameters: HyperParameters,
-    @Cookies('Authentication') authentication: string,
-    @CurrentUser() user: User,
-  ): Promise<any> {
-    // Check if the user has write access to the dataset
-    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
-      datasetId,
-      user,
-    );
-
-    if (!hasWriteAccess) {
-      throw new UnauthorizedException(
-        'User does not have write access to dataset',
-      );
-    }
-
-    try {
-      // Emit an event to start training the dataset with the specified parameters
-      await this.datasetsService.emitTrainDataset(
-        datasetId,
-        modelName,
-        hyperParameters,
-        authentication,
-      );
-    } catch (e) {
-      console.log("Couldn't publish message to train model");
-      throw new BadRequestException(e.message);
-    }
-
-    try {
-      // Create a new model with the specified parameters
-      return await this.datasetsService.createModel(
-        datasetId,
-        modelName,
-        hyperParameters,
-      );
-    } catch (e) {
-      console.log("Couldn't create model");
-      throw new BadRequestException(e.message);
-    }
-  }
-
   @EventPattern('model_trained')
   @UseGuards(JwtAuthGuard)
   async modelTrained(
     @Payload() payload: ModelTrainedPayload,
     @CurrentUser() user: User,
   ) {
-    const { status, message, datasetId, modelName, modelFiles } = payload;
+    const { status, datasetId, modelName, modelFiles } = payload;
 
     const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
       datasetId,
@@ -214,6 +154,69 @@ export class DatasetsController {
       modelName,
       modelFiles,
     );
+  }
+
+  /**
+   * Handles the HTTP POST request for training a dataset.
+   * Requires authentication using JWT.
+   *
+   * @param {string} datasetId - The ID of the dataset to be trained.
+   * @param {string} modelName - The name of the model to be created.
+   * @param {HyperParameters} hyperParameters - The hyperparameters for the training process.
+   * @param resume - Whether to resume training from a previous PyTorch model.
+   * @param {string} authentication - The authentication token provided in the request cookie.
+   * @param {User} user - The currently authenticated user.
+   * @returns {Promise<any>} - Returns a promise that resolves to the created model.
+   * @throws {UnauthorizedException} - Throws an exception if the user does not have write access to the dataset.
+   * @throws {BadRequestException} - Throws an exception if there is an error during training or model creation.
+   */
+  @Post('train')
+  @UseGuards(JwtAuthGuard)
+  async trainDataset(
+    @Payload('datasetId') datasetId: string,
+    @Payload('modelName') modelName: string,
+    @Payload('hyperParameters') hyperParameters: HyperParameters,
+    @Cookies('Authentication') authentication: string,
+    @CurrentUser() user: User,
+    @Payload('resume') resume?: boolean,
+  ): Promise<any> {
+    // Check if the user has write access to the dataset
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    try {
+      // Emit an event to start training the dataset with the specified parameters
+      await this.datasetsService.emitTrainDataset(
+        datasetId,
+        modelName,
+        hyperParameters,
+        authentication,
+        resume,
+      );
+    } catch (e) {
+      console.log("Couldn't publish message to train model");
+      throw new BadRequestException(e.message);
+    }
+
+    try {
+      // Create a new model with the specified parameters
+      return await this.datasetsService.createModel(
+        datasetId,
+        modelName,
+        hyperParameters,
+      );
+    } catch (e) {
+      console.log("Couldn't create model");
+      throw new BadRequestException(e.message);
+    }
   }
 
   @Post('remove')

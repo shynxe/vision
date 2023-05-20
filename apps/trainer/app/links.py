@@ -11,3 +11,6 @@ def get_image_download_url(dataset_id, image_name):
 
 def get_model_upload_url(dataset_id):
     return filestorage_url + "/upload/model/" + dataset_id
+
+def get_filestorage_url():
+    return filestorage_url

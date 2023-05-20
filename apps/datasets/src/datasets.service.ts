@@ -15,7 +15,7 @@ import { BoundingBox } from './schemas/image.schema';
 import {
   HyperParameters,
   Model,
-  ModelFile,
+  ModelFiles,
   ModelStatus,
 } from '@app/common/types/model';
 
@@ -157,15 +157,18 @@ export class DatasetsService {
     modelName: string,
     hyperParams: HyperParameters,
     authentication: string,
+    resume: boolean,
   ) {
     const dataset = await this.getDatasetById(datasetId);
-    return this.trainerClient.emit('train', {
+    const data = {
       datasetId,
       modelName,
       hyperParameters: hyperParams,
-      images: dataset.images,
+      dataset: dataset,
       Authentication: authentication,
-    });
+      resume,
+    };
+    return this.trainerClient.emit('train', data);
   }
 
   getDatasetById(datasetId: string) {
@@ -187,10 +190,22 @@ export class DatasetsService {
       status: ModelStatus.PENDING,
     };
 
-    await this.datasetsRepository.findOneAndUpdate(
-      { _id: datasetId },
-      { $push: { models: model } },
-    );
+    const dataset = await this.datasetsRepository.findById(datasetId);
+
+    // if dataset contains model with same name, replace it
+    const modelIndex = dataset.models.findIndex((m) => m.name === modelName);
+
+    if (modelIndex !== -1) {
+      await this.datasetsRepository.findOneAndUpdate(
+        { _id: datasetId },
+        { $set: { [`models.${modelIndex}`]: model } },
+      );
+    } else {
+      await this.datasetsRepository.findOneAndUpdate(
+        { _id: datasetId },
+        { $push: { models: model } },
+      );
+    }
 
     return model;
   }
@@ -212,14 +227,14 @@ export class DatasetsService {
   async updateModelUploaded(
     datasetId: string,
     modelName: string,
-    modelFiles: ModelFile[],
+    files: ModelFiles,
   ) {
     return this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId, 'models.name': modelName },
       {
         $set: {
           'models.$.status': ModelStatus.UPLOADED,
-          'models.$.files': modelFiles,
+          'models.$.files': files,
         },
       },
     );

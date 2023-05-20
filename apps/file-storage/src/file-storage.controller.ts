@@ -91,7 +91,6 @@ export class FileStorageController {
 
   @Get('model/:datasetId/:filename')
   @Header('Content-Type', 'application/octet-stream')
-  @BypassAuth()
   @UseGuards(JwtAuthGuard)
   public async getModel(
     @Param('datasetId') datasetId: string,
