@@ -21,10 +21,28 @@ model_trained_pattern = 'model_trained'
 def handle_train(ch, method, _, body):
     message = body.decode()
     decoded_body = json.loads(message)
-
     data = decoded_body['data']
     print(" [*] Received message: {}".format(data))
 
+    success, payload = _train(data)
+
+    if success:
+        respond_success(ch, payload, data)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    else:
+        respond_error(ch, payload, data)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    try:
+        _clean_up()
+        print(" [*] Clean up done.")
+    except Exception as e:
+        print(" [x] Error in cleaning up: {}".format(e))
+        print(traceback.format_exc())
+        return
+
+
+def _train(data):
     authentication = data['Authentication']
     cookies = {'Authentication': authentication}
 
@@ -37,27 +55,21 @@ def handle_train(ch, method, _, body):
     except Exception as e:
         print(" [x] Error in parsing input: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, 'Error in parsing input', data)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        return
+        return False, 'Error in parsing input'
 
     try:
         dataset_path = prepare_dataset(dataset_id, labels)
     except Exception as e:
         print(" [x] Error in preparing dataset: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, 'Error in preparing dataset', data)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        return
+        return False, 'Error in preparing dataset'
 
     try:
         _download_dataset(dataset_path, images, cookies)
     except Exception as e:
         print(" [x] Error in downloading images: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, 'Error in downloading images', data)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        return
+        return False, 'Error in downloading images'
 
     yaml_path = get_yaml_path(dataset_id)
     print(" [*] .yaml file created: {}".format(yaml_path))
@@ -73,9 +85,7 @@ def handle_train(ch, method, _, body):
     except Exception as e:
         print(" [x] Error in training model: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, 'Error in training model', data)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        return
+        return False, 'Error in training model'
 
     # Upload the model
     try:
@@ -84,20 +94,9 @@ def handle_train(ch, method, _, body):
     except Exception as e:
         print(" [x] Error in uploading model: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, 'Error in uploading model', data)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        return
+        return False, 'Error in uploading model'
 
-    respond_success(ch, uploaded_models, data)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
-
-    try:
-        _clean_up()
-        print(" [*] Clean up done.")
-    except Exception as e:
-        print(" [x] Error in cleaning up: {}".format(e))
-        print(traceback.format_exc())
-        return
+    return True, uploaded_models
 
 
 def _train_model(yaml_path, hyper_parameters):
@@ -124,7 +123,7 @@ def respond_success(ch, uploaded_models, data):
         'modelFiles': uploaded_models
     }
     # add the uploaded models to the response
-    print(' [*] Success: {}'.format(message))
+    print(' [*] Success: {}'.format(response))
     publish_model_trained(ch, response, data)
 
 
