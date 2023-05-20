@@ -15,7 +15,9 @@ prepare_machine()
 rabbitmq_uri = os.environ['RABBIT_MQ_URI']
 
 # Read the trainer queue name from the environment variable
+# Read the datasets queue name from the environment variable
 trainer_queue = os.environ['RABBIT_MQ_TRAINER_QUEUE']
+datasets_queue = os.environ['RABBIT_MQ_DATASETS_QUEUE']
 
 # Create a connection to the RabbitMQ instance
 connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_uri))
@@ -25,6 +27,9 @@ channel = connection.channel()
 
 # Declare the trainer queue
 channel.queue_declare(queue=trainer_queue, durable=True)
+
+# Declare the datasets queue
+channel.queue_declare(queue=datasets_queue, durable=True)
 
 # Start consuming messages from the trainer queue
 channel.basic_consume(queue=trainer_queue, on_message_callback=handle_train, auto_ack=False)

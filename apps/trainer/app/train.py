@@ -1,5 +1,6 @@
 import json
 import os
+from dotenv import load_dotenv
 
 import pika
 import traceback
@@ -10,13 +11,18 @@ import shutil
 
 from prepare import prepare_dataset, get_yaml_path, get_model_exports_paths
 from links import get_image_download_url, get_model_upload_url
+from constants import ModelStatus
+
+load_dotenv()
+datasets_queue = os.environ['RABBIT_MQ_DATASETS_QUEUE']
+model_trained_pattern = 'model_trained'
 
 
-def handle_train(ch, method, properties, body):
+def handle_train(ch, method, _, body):
     message = body.decode()
-    payload = json.loads(message)
+    decoded_body = json.loads(message)
 
-    data = payload['data']
+    data = decoded_body['data']
     print(" [*] Received message: {}".format(data))
 
     authentication = data['Authentication']
@@ -31,7 +37,7 @@ def handle_train(ch, method, properties, body):
     except Exception as e:
         print(" [x] Error in parsing input: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, properties, 'Error in parsing input')
+        respond_error(ch, 'Error in parsing input', data)
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
@@ -40,7 +46,7 @@ def handle_train(ch, method, properties, body):
     except Exception as e:
         print(" [x] Error in preparing dataset: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, properties, 'Error in preparing dataset')
+        respond_error(ch, 'Error in preparing dataset', data)
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
@@ -49,12 +55,9 @@ def handle_train(ch, method, properties, body):
     except Exception as e:
         print(" [x] Error in downloading images: {}".format(e))
         print(traceback.format_exc())
-        respond_error(ch, properties, 'Error in downloading images')
+        respond_error(ch, 'Error in downloading images', data)
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
-
-    respond_success(ch, properties, 'Successfully started training')
-    ch.basic_ack(delivery_tag=method.delivery_tag)
 
     yaml_path = get_yaml_path(dataset_id)
     print(" [*] .yaml file created: {}".format(yaml_path))
@@ -70,16 +73,23 @@ def handle_train(ch, method, properties, body):
     except Exception as e:
         print(" [x] Error in training model: {}".format(e))
         print(traceback.format_exc())
+        respond_error(ch, 'Error in training model', data)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
     # Upload the model
     try:
-        _upload_results(dataset_id, model_name, cookies)
+        uploaded_models = _upload_results(dataset_id, model_name, cookies)
         print(" [*] Model uploaded.")
     except Exception as e:
         print(" [x] Error in uploading model: {}".format(e))
         print(traceback.format_exc())
+        respond_error(ch, 'Error in uploading model', data)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
+
+    respond_success(ch, uploaded_models, data)
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
     try:
         _clean_up()
@@ -98,27 +108,47 @@ def _train_model(yaml_path, hyper_parameters):
     return model
 
 
-def respond_error(ch, properties, message):
+def respond_error(ch, message, data):
     response = {
-        'status': 'error',
+        'status': ModelStatus['FAILED'],
         'message': message
     }
-    reply_to_message(ch, properties, response)
+    print(' [x] Error: {}'.format(message))
+    publish_model_trained(ch, response, data)
 
 
-def respond_success(ch, properties, message):
+def respond_success(ch, uploaded_models, data):
     response = {
-        'status': 'success',
-        'message': message
+        'status': ModelStatus['UPLOADED'],
+        'message': "Model uploaded successfully",
+        'modelFiles': uploaded_models
     }
-    reply_to_message(ch, properties, response)
+    # add the uploaded models to the response
+    print(' [*] Success: {}'.format(message))
+    publish_model_trained(ch, response, data)
 
 
-def reply_to_message(ch, properties, response):
-    ch.basic_publish(exchange='',
-                     routing_key=properties.reply_to,
-                     properties=pika.BasicProperties(correlation_id=properties.correlation_id),
-                     body=json.dumps(response))
+def publish_model_trained(ch, payload, data):
+    print(' [*] Publishing data: {}'.format(payload))
+    model_name = _get_model_name(data)
+    dataset_id = _get_dataset_id(data)
+    auth = data['Authentication']
+    payload['modelName'] = model_name
+    payload['datasetId'] = dataset_id
+    payload['Authentication'] = auth
+
+    body = {
+        'data': payload,
+        'pattern': model_trained_pattern,
+    }
+    ch.basic_publish(
+        exchange='',
+        routing_key=datasets_queue,
+        body=json.dumps(body),
+        properties=pika.BasicProperties(
+            delivery_mode=2  # Make the message persistent
+        )
+    )
 
 
 # Send a GET request to each of the images in the message
@@ -179,6 +209,8 @@ def _upload_results(dataset_id, model_name, cookies):
     _model_upload_url = get_model_upload_url(dataset_id)
     model_exports_paths = get_model_exports_paths()
 
+    uploaded_models = []
+
     for model_type, export_path in model_exports_paths.items():
         model_filename = model_name + os.path.splitext(export_path)[1]  # Get extension from the export path
 
@@ -198,17 +230,13 @@ def _upload_results(dataset_id, model_name, cookies):
         #     "fileUrl": "http://localhost:3002/model/6435ade2f7613b0080f7984d/5e31c447cd81769ce1b5585ab3a2d2a0"
         # }
 
-        # notify datasets service that the model has been uploaded
-        # by sending a POST request to /model/complete
-        # with the url of the model
-        # model_url = upload_response.json()['fileUrl']
-        # _datasets_service_url = get_datasets_service_url()
-        # model_complete_response = requests.post(_datasets_service_url, json={"url": model_url}, cookies=cookies)
-        # if model_complete_response.status_code != 200:
-        #     print(" [*] Error notifying datasets service: {}".format(model_complete_response.text))
-        #     raise Exception(f"Error notifying datasets service about {model_type} model upload")
-        #
+        response = upload_response.json()
+        uploaded_models.append({
+            "url": response["fileUrl"],
+            "modelType": model_type
+        })
         print(f" [*] Uploaded {model_type} model to trainer")
+    return uploaded_models
 
 
 # Parse data from the message

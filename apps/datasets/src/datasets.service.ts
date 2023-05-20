@@ -7,12 +7,17 @@ import {
   TRAINER_SERVICE,
 } from './constants/services';
 import { ClientProxy } from '@nestjs/microservices';
-import { catchError, lastValueFrom, tap, throwError } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 import { Dataset } from './schemas/dataset.schema';
 import { User } from '../../auth/src/users/schemas/user.schema';
 import { RemoveFileRequest } from './dto/RemoveFileRequest';
 import { BoundingBox } from './schemas/image.schema';
-import { HyperParameters, Model } from '@app/common/types/model.schema';
+import {
+  HyperParameters,
+  Model,
+  ModelFile,
+  ModelStatus,
+} from '@app/common/types/model';
 
 @Injectable()
 export class DatasetsService {
@@ -147,35 +152,20 @@ export class DatasetsService {
     );
   }
 
-  async trainDataset(
+  async emitTrainDataset(
     datasetId: string,
     modelName: string,
     hyperParams: HyperParameters,
     authentication: string,
   ) {
     const dataset = await this.getDatasetById(datasetId);
-    return await lastValueFrom(
-      this.trainerClient
-        .send('train', {
-          datasetId,
-          modelName,
-          hyperParameters: hyperParams,
-          images: dataset.images,
-          Authentication: authentication,
-        })
-        .pipe(
-          tap((response) => {
-            console.log(response);
-            if (response.success) {
-              console.log('success');
-            }
-          }),
-          catchError((error) => {
-            console.log(error);
-            return throwError(error);
-          }),
-        ),
-    );
+    return this.trainerClient.emit('train', {
+      datasetId,
+      modelName,
+      hyperParameters: hyperParams,
+      images: dataset.images,
+      Authentication: authentication,
+    });
   }
 
   getDatasetById(datasetId: string) {
@@ -186,17 +176,52 @@ export class DatasetsService {
     return this.datasetsRepository.findByIdAndDelete(datasetId);
   }
 
-  addModel(datasetId: string, model: Model) {
-    return this.datasetsRepository.findOneAndUpdate(
+  async createModel(
+    datasetId: string,
+    modelName: string,
+    hyperParams: HyperParameters,
+  ) {
+    const model: Model = {
+      name: modelName,
+      hyperParameters: hyperParams,
+      status: ModelStatus.PENDING,
+    };
+
+    await this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId },
       { $push: { models: model } },
     );
+
+    return model;
   }
 
-  removeModel(datasetId: string, modelId: string) {
+  removeModel(datasetId: string, modelName: string) {
     return this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId },
-      { $pull: { models: { _id: modelId } } },
+      { $pull: { models: { name: modelName } } },
+    );
+  }
+
+  async updateModelFailed(datasetId: string, modelName: string) {
+    return this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId, 'models.name': modelName },
+      { $set: { 'models.$.status': ModelStatus.FAILED } },
+    );
+  }
+
+  async updateModelUploaded(
+    datasetId: string,
+    modelName: string,
+    modelFiles: ModelFile[],
+  ) {
+    return this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId, 'models.name': modelName },
+      {
+        $set: {
+          'models.$.status': ModelStatus.UPLOADED,
+          'models.$.files': modelFiles,
+        },
+      },
     );
   }
 }

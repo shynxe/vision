@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { AbstractDocument } from '@app/common';
 import { Image, ImageSchema } from './image.schema';
-import { ModelSchema } from '@app/common/types/model.schema';
+import { Model, ModelSchema } from '@app/common/types/model';
 
 @Schema({ versionKey: false })
 export class Dataset extends AbstractDocument {
@@ -18,7 +18,7 @@ export class Dataset extends AbstractDocument {
   images: Image[];
 
   @Prop([{ type: ModelSchema }])
-  models: ModelSchema[];
+  models: Model[];
 }
 
 export const DatasetSchema = SchemaFactory.createForClass(Dataset);

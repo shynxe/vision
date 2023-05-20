@@ -21,7 +21,8 @@ import { FileUploadedPayload } from './dto/FileUploadedPayload';
 import { BoundingBox } from './schemas/image.schema';
 import { Cookies } from '@app/common/cookies/cookies.decorator';
 import validateBoundingBoxes from './helpers/validateBoundingBoxes';
-import { HyperParameters, Model } from '@app/common/types/model.schema';
+import { HyperParameters, ModelStatus } from '@app/common/types/model';
+import { ModelTrainedPayload } from './dto/ModelTrainedPayload';
 
 @Controller('datasets')
 export class DatasetsController {
@@ -125,6 +126,19 @@ export class DatasetsController {
     );
   }
 
+  /**
+   * Handles the HTTP POST request for training a dataset.
+   * Requires authentication using JWT.
+   *
+   * @param {string} datasetId - The ID of the dataset to be trained.
+   * @param {string} modelName - The name of the model to be created.
+   * @param {HyperParameters} hyperParameters - The hyperparameters for the training process.
+   * @param {string} authentication - The authentication token provided in the request cookie.
+   * @param {User} user - The currently authenticated user.
+   * @returns {Promise<any>} - Returns a promise that resolves to the created model.
+   * @throws {UnauthorizedException} - Throws an exception if the user does not have write access to the dataset.
+   * @throws {BadRequestException} - Throws an exception if there is an error during training or model creation.
+   */
   @Post('train')
   @UseGuards(JwtAuthGuard)
   async trainDataset(
@@ -132,12 +146,73 @@ export class DatasetsController {
     @Payload('modelName') modelName: string,
     @Payload('hyperParameters') hyperParameters: HyperParameters,
     @Cookies('Authentication') authentication: string,
+    @CurrentUser() user: User,
+  ): Promise<any> {
+    // Check if the user has write access to the dataset
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    try {
+      // Emit an event to start training the dataset with the specified parameters
+      await this.datasetsService.emitTrainDataset(
+        datasetId,
+        modelName,
+        hyperParameters,
+        authentication,
+      );
+    } catch (e) {
+      console.log("Couldn't publish message to train model");
+      throw new BadRequestException(e.message);
+    }
+
+    try {
+      // Create a new model with the specified parameters
+      return await this.datasetsService.createModel(
+        datasetId,
+        modelName,
+        hyperParameters,
+      );
+    } catch (e) {
+      console.log("Couldn't create model");
+      throw new BadRequestException(e.message);
+    }
+  }
+
+  @EventPattern('model_trained')
+  @UseGuards(JwtAuthGuard)
+  async modelTrained(
+    @Payload() payload: ModelTrainedPayload,
+    @CurrentUser() user: User,
   ) {
-    return this.datasetsService.trainDataset(
+    const { status, message, datasetId, modelName, modelFiles } = payload;
+
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    if (status === ModelStatus.FAILED) {
+      return await this.datasetsService.updateModelFailed(datasetId, modelName);
+    }
+
+    return await this.datasetsService.updateModelUploaded(
       datasetId,
       modelName,
-      hyperParameters,
-      authentication,
+      modelFiles,
     );
   }
 
@@ -159,47 +234,5 @@ export class DatasetsController {
     }
 
     return this.datasetsService.removeDataset(datasetId);
-  }
-
-  @Post('models/add')
-  @UseGuards(JwtAuthGuard)
-  async addModel(
-    @Payload('datasetId') datasetId: string,
-    @Payload('model') model: Model,
-    @CurrentUser() user: User,
-  ) {
-    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
-      datasetId,
-      user,
-    );
-
-    if (!hasWriteAccess) {
-      throw new UnauthorizedException(
-        'User does not have write access to dataset',
-      );
-    }
-
-    return this.datasetsService.addModel(datasetId, model);
-  }
-
-  @Post('models/remove')
-  @UseGuards(JwtAuthGuard)
-  async removeModel(
-    @Payload('datasetId') datasetId: string,
-    @Payload('modelId') modelId: string,
-    @CurrentUser() user: User,
-  ) {
-    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
-      datasetId,
-      user,
-    );
-
-    if (!hasWriteAccess) {
-      throw new UnauthorizedException(
-        'User does not have write access to dataset',
-      );
-    }
-
-    return this.datasetsService.removeModel(datasetId, modelId);
   }
 }
