@@ -183,34 +183,34 @@ export class DatasetsService {
     datasetId: string,
     modelName: string,
     hyperParams: HyperParameters,
-  ) {
+  ): Promise<Dataset> {
     const model: Model = {
       name: modelName,
       hyperParameters: hyperParams,
       status: ModelStatus.PENDING,
+      updatedAt: new Date(),
     };
 
     const dataset = await this.datasetsRepository.findById(datasetId);
-
-    // if dataset contains model with same name, replace it
     const modelIndex = dataset.models.findIndex((m) => m.name === modelName);
 
+    // if dataset contains model with same name, replace it
     if (modelIndex !== -1) {
-      await this.datasetsRepository.findOneAndUpdate(
+      model.hyperParameters.epochs +=
+        dataset.models[modelIndex].hyperParameters.epochs;
+      return await this.datasetsRepository.findOneAndUpdate(
         { _id: datasetId },
         { $set: { [`models.${modelIndex}`]: model } },
       );
-    } else {
-      await this.datasetsRepository.findOneAndUpdate(
-        { _id: datasetId },
-        { $push: { models: model } },
-      );
     }
 
-    return model;
+    return await this.datasetsRepository.findOneAndUpdate(
+      { _id: datasetId },
+      { $push: { models: model } },
+    );
   }
 
-  removeModel(datasetId: string, modelName: string) {
+  removeModel(datasetId: string, modelName: string): Promise<Dataset> {
     return this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId },
       { $pull: { models: { name: modelName } } },
@@ -218,9 +218,15 @@ export class DatasetsService {
   }
 
   async updateModelFailed(datasetId: string, modelName: string) {
+    const lastUpdated = new Date();
     return this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId, 'models.name': modelName },
-      { $set: { 'models.$.status': ModelStatus.FAILED } },
+      {
+        $set: {
+          'models.$.status': ModelStatus.FAILED,
+          'models.$.updatedAt': lastUpdated,
+        },
+      },
     );
   }
 
@@ -229,12 +235,14 @@ export class DatasetsService {
     modelName: string,
     files: ModelFiles,
   ) {
+    const lastUpdated = new Date();
     return this.datasetsRepository.findOneAndUpdate(
       { _id: datasetId, 'models.name': modelName },
       {
         $set: {
           'models.$.status': ModelStatus.UPLOADED,
           'models.$.files': files,
+          'models.$.updatedAt': lastUpdated,
         },
       },
     );

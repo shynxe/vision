@@ -219,6 +219,27 @@ export class DatasetsController {
     }
   }
 
+  @Post('models/remove')
+  @UseGuards(JwtAuthGuard)
+  async removeModel(
+    @Payload('datasetId') datasetId: string,
+    @Payload('modelName') modelName: string,
+    @CurrentUser() user: User,
+  ) {
+    const hasWriteAccess = await this.datasetsService.userHasWriteAccess(
+      datasetId,
+      user,
+    );
+
+    if (!hasWriteAccess) {
+      throw new UnauthorizedException(
+        'User does not have write access to dataset',
+      );
+    }
+
+    return this.datasetsService.removeModel(datasetId, modelName);
+  }
+
   @Post('remove')
   @UseGuards(JwtAuthGuard)
   async removeDataset(

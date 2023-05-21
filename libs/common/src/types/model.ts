@@ -37,6 +37,9 @@ export class Model {
 
   @Prop({ type: String, enum: ModelStatus, default: ModelStatus.PENDING })
   status: ModelStatus;
+
+  @Prop({ type: Date, default: Date.now })
+  updatedAt: Date;
 }
 
 export const ModelSchema = SchemaFactory.createForClass(Model);
